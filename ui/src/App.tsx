@@ -4,9 +4,11 @@ import Home from './pages/Home'
 import HistoryPage from './pages/HistoryPage'
 import AdminPage from './pages/AdminPage'
 import AdminLoginPage from './pages/AdminLoginPage'
-import { postAdminVerify } from './lib/api'
+import InterviewPage from './pages/InterviewPage'
+import { postAdminVerify, verifyAuth } from './lib/api'
 
 const STORAGE_KEY = 'whoisme_admin'
+const USER_TOKEN_KEY = 'whoisme_user_token'
 
 function useHashRoute() {
   const [hash, setHash] = useState(window.location.hash)
@@ -24,7 +26,7 @@ export default function App() {
 
   const [adminAuthed, setAdminAuthed] = useState(() => !!localStorage.getItem(STORAGE_KEY))
 
-  // On mount: if /#/admin?token=... is present, verify it
+  // On mount: if /#/admin?token=... is present, verify admin
   useEffect(() => {
     if (!basePath.startsWith('#/admin')) return
     if (adminAuthed) return
@@ -43,7 +45,28 @@ export default function App() {
     }).catch(() => { /* invalid token — stay on login page */ })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // On mount: if /#/verify?token=... is present, verify user magic link
+  useEffect(() => {
+    if (basePath !== '#/verify') return
+
+    const qIdx = hash.indexOf('?')
+    if (qIdx === -1) return
+    const token = new URLSearchParams(hash.slice(qIdx + 1)).get('token')
+    if (!token) return
+
+    verifyAuth(token).then(r => {
+      localStorage.setItem(USER_TOKEN_KEY, r.token)
+      history.replaceState(null, '', '#/interview')
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
+    }).catch(() => {
+      history.replaceState(null, '', '#/interview')
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const page = basePath === '#/history'              ? 'history'
+             : basePath === '#/interview'             ? 'interview'
+             : basePath === '#/verify'               ? 'interview'
              : basePath === '#/admin' && adminAuthed ? 'admin'
              : basePath === '#/admin'                ? 'admin-login'
              : 'home'
@@ -53,6 +76,7 @@ export default function App() {
       <Cursor />
       <div className="fixed inset-0 pointer-events-none z-0 bg-[image:linear-gradient(var(--border)_1px,transparent_1px),linear-gradient(90deg,var(--border)_1px,transparent_1px)] bg-[size:80px_80px] [mask-image:radial-gradient(ellipse_at_center,transparent_30%,black_100%)]" />
       {page === 'history'    ? <HistoryPage />
+     : page === 'interview'  ? <InterviewPage />
      : page === 'admin'      ? <AdminPage />
      : page === 'admin-login'? <AdminLoginPage />
      : <Home />}

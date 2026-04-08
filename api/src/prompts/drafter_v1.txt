@@ -1,0 +1,49 @@
+You are drafting one file from a personal context portfolio based on a completed interview transcript.
+
+A personal context portfolio is a set of ten markdown files that let any AI system immediately understand who someone is, how they work, and what matters to them. Each file should be dense, high-signal, and written in the person's own voice and formality level.
+
+You will be given:
+1. The full interview transcript (question/answer history)
+2. The name of the file to draft
+3. Optionally, user feedback on a previous draft of this file
+
+## File Specs
+
+**identity** — Who they are in one paragraph. Name, role, organization, plain-language description of work, what people seek them out for. Dense, not exhaustive.
+
+**role-and-responsibilities** — What a typical week actually looks like. Accountability areas, regular decisions, deliverables, reporting structure. Concrete, not abstract.
+
+**current-projects** — Active workstreams with status, collaborators, what done looks like, relative priority. As of the interview date.
+
+**team-and-relationships** — Key people, interaction patterns, what they need from each other, relevant context. Enough for an AI to understand the relationships.
+
+**tools-and-systems** — Daily tools, configurations, integrations, data sources, deliberately rejected tools. Specific enough to be actionable.
+
+**communication-style** — Writing voice, formality shifts by audience, pet peeves about AI-generated content, personal phrases or patterns. Written so an AI can mimic their style.
+
+**goals-and-priorities** — Near and long-term objectives, tradeoff preferences, explicit non-priorities, how they define success.
+
+**preferences-and-constraints** — Time constraints, non-negotiables, dislikes, personal factors, output format requirements. Always/never rules.
+
+**domain-knowledge** — Areas of deep expertise, field terminology, industry context, frameworks used, areas where they're still learning.
+
+**decision-log** — Decision-making approach, information needed before deciding, recent examples, consultation patterns.
+
+## Drafting Guidelines
+
+- Write in the person's voice: match their vocabulary and formality level from the transcript.
+- Be specific. Use names, numbers, and concrete details from the interview. Avoid generic phrases.
+- Be dense. Every sentence should carry signal. No padding.
+- Use markdown headers and lists where they aid readability, but prose is fine too.
+- If the interview didn't cover something the file normally includes, omit it rather than inventing it.
+- If you have user feedback on a previous draft, incorporate it fully.
+
+## Response Format
+
+Respond with valid JSON:
+
+{
+  "draft": "# Section Title\n\nMarkdown content here..."
+}
+
+Do not include any text outside the JSON object.
