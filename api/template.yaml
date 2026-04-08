@@ -41,6 +41,22 @@ Parameters:
     Default: "https://whoisme.io"
     Description: Public site URL used to build magic link hrefs
 
+  CfApiToken:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Cloudflare API token for KV writes on publish
+
+  CfZoneId:
+    Type: String
+    Default: ""
+    Description: Cloudflare Zone ID for whoisme.io
+
+  CfKvNamespaceId:
+    Type: String
+    Default: ""
+    Description: Cloudflare KV namespace ID for profile storage
+
 Globals:
   Function:
     Runtime: python3.12
@@ -63,6 +79,12 @@ Globals:
         ADMIN_EMAILS: !Ref AdminEmails
         SITE_URL: !Ref SiteUrl
         ADMIN_TOKENS_TABLE: !Ref AdminTokensTable
+        USERS_TABLE: !Ref UsersTable
+        USER_TOKENS_TABLE: !Ref UserTokensTable
+        INTERVIEW_SESSIONS_TABLE: !Ref InterviewSessionsTable
+        CF_API_TOKEN: !Ref CfApiToken
+        CF_ZONE_ID: !Ref CfZoneId
+        CF_KV_NAMESPACE_ID: !Ref CfKvNamespaceId
 
 Resources:
   # ── DynamoDB Tables ─────────────────────────────────────────────────────────
@@ -182,6 +204,77 @@ Resources:
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: false
 
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: whoisme-users
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+        - AttributeName: username
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: username-index
+          KeySchema:
+            - AttributeName: username
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+
+  UserTokensTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TableName: whoisme-user-tokens
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: token_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: token_id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+
+  InterviewSessionsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: whoisme-interview-sessions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+
   # ── Lambda Function ──────────────────────────────────────────────────────────
 
   WhoIsMeApiFunction:
@@ -204,6 +297,12 @@ Resources:
             TableName: !Ref ConversationIdeasTable
         - DynamoDBCrudPolicy:
             TableName: !Ref AdminTokensTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UserTokensTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InterviewSessionsTable
         - Statement:
             - Effect: Allow
               Action:

@@ -89,7 +89,10 @@ jobs:
               "AcmCertificateArn=${{ secrets.ACM_CERTIFICATE_ARN }}" \
               "ApiDomainName=api.whoisme.io" \
               "SlackmailUrl=${{ secrets.SLACKMAIL_URL }}" \
-              "SlackmailApiKey=${{ secrets.SLACKMAIL_API_KEY }}"
+              "SlackmailApiKey=${{ secrets.SLACKMAIL_API_KEY }}" \
+              "CfApiToken=${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              "CfZoneId=${{ secrets.CLOUDFLARE_ZONE_ID }}" \
+              "CfKvNamespaceId=${{ secrets.CF_KV_NAMESPACE_ID }}"
 
       - name: Update api.whoisme.io DNS
         run: |
