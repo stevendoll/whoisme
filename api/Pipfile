@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+boto3 = "*"
+aws-lambda-powertools = {extras = ["all"], version = "*"}
+pydantic = ">=2.0"
+requests = "*"
+
+[dev-packages]
+pytest = "*"
+moto = {extras = ["dynamodb"], version = "*"}
+
+[requires]
+python_version = "3.12"

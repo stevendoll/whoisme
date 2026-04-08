@@ -1,0 +1,24 @@
+.env
+.env.local
+.DS_Store
+
+# Claude Code — track settings.json but not local overrides
+.claude/settings.local.json
+
+# Session logs
+docs/sessions/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+Pipfile.lock
+api/.aws-sam/
+
+# Node
+ui/node_modules/
+ui/dist/
+
+# SAM
+.aws-sam/
+samconfig.toml.backup

@@ -1,0 +1,17 @@
+<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- Circular background -->
+  <circle cx="40" cy="40" r="40" fill="#4db6ac"/>
+
+  <!-- Magic hat with rabbit ears -->
+  <g fill="white">
+    <!-- Hat body -->
+    <rect x="25" y="35" width="30" height="25" rx="2"/>
+    <!-- Hat brim -->
+    <ellipse cx="40" cy="60" rx="20" ry="4"/>
+    <!-- Rabbit ears poking out -->
+    <ellipse cx="32" cy="30" rx="3" ry="12"/>
+    <ellipse cx="48" cy="30" rx="3" ry="12"/>
+    <!-- Hat top band -->
+    <rect x="25" y="40" width="30" height="3" fill="#66d4c8"/>
+  </g>
+</svg>

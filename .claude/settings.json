@@ -1,0 +1,9 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "command": "python3 scripts/extract_session.py"
+      }
+    ]
+  }
+}

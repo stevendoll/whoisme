@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>t12n.ai — Font Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=Instrument+Serif:ital@0;1&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300;1,6..72,400&family=Inter:wght@300;400;500&family=Playfair+Display:ital,wght@0,700;1,400&family=Lora:ital,wght@0,400;1,400&family=JetBrains+Mono:wght@300;400&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;1,300&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;1,9..144,300&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;1,8..60,300&family=Space+Mono:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #054f59;
+    background-image:
+      linear-gradient(rgba(245,240,232,0.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(245,240,232,0.055) 1px, transparent 1px);
+    background-size: 80px 80px;
+    background-attachment: fixed;
+    color: #f5f0e8;
+    min-height: 100vh;
+    padding: 48px 24px 80px;
+  }
+
+  h1 {
+    font-family: 'DM Mono', monospace;
+    font-weight: 300;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(245,240,232,0.4);
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .card {
+    background: rgba(245,240,232,0.04);
+    border: 1px solid rgba(245,240,232,0.1);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .card-label {
+    font-family: 'DM Mono', monospace;
+    font-weight: 400;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(245,240,232,0.35);
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(245,240,232,0.07);
+  }
+
+  .card-body { padding: 24px 20px; }
+
+  /* ── Shared structural components ─────────────────────── */
+
+  .nav-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(245,240,232,0.1);
+  }
+
+  .nav-logo {
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: #f5f0e8;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 20px;
+    font-size: 12px;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+    color: rgba(245,240,232,0.55);
+  }
+
+  .hero-quote {
+    font-size: 22px;
+    font-style: italic;
+    line-height: 1.45;
+    color: #4db6ac;
+    margin-bottom: 20px;
+  }
+
+  .hero-quote em { color: #f5f0e8; font-style: inherit; }
+
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(245,240,232,0.3);
+    margin-bottom: 12px;
+  }
+
+  .chat-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .bubble {
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.55;
+    max-width: 85%;
+  }
+
+  .bubble-visitor {
+    background: rgba(77,182,172,0.12);
+    border: 1px solid rgba(77,182,172,0.25);
+    align-self: flex-start;
+  }
+
+  .bubble-c1 {
+    background: rgba(210,160,80,0.1);
+    border: 1px solid rgba(210,160,80,0.2);
+    align-self: flex-end;
+  }
+
+  .bubble-c2 {
+    background: rgba(155,133,200,0.1);
+    border: 1px solid rgba(155,133,200,0.2);
+    align-self: flex-end;
+  }
+
+  .speaker-tag {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    opacity: 0.5;
+  }
+
+  .tag-visitor  { color: #4db6ac; }
+  .tag-c1       { color: #d2a050; }
+  .tag-c2       { color: #9b85c8; }
+
+  .ui-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgba(245,240,232,0.04);
+    border: 1px solid rgba(245,240,232,0.1);
+    border-radius: 8px;
+    margin-bottom: 14px;
+  }
+
+  .ui-input {
+    flex: 1;
+    font-size: 15px;
+    color: rgba(245,240,232,0.55);
+    font-style: italic;
+  }
+
+  .btn {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 6px;
+    background: rgba(77,182,172,0.15);
+    border: 1px solid rgba(77,182,172,0.3);
+    color: #4db6ac;
+    white-space: nowrap;
+  }
+
+  .meta-row {
+    font-size: 11px;
+    color: rgba(245,240,232,0.25);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Option A — DM Sans + Instrument Serif + Newsreader ── */
+  .opt-a .nav-logo,
+  .opt-a .nav-links  { font-family: 'DM Sans', sans-serif; }
+  .opt-a .hero-quote { font-family: 'Instrument Serif', serif; }
+  .opt-a .bubble     { font-family: 'Newsreader', serif; }
+  .opt-a .section-label,
+  .opt-a .speaker-tag,
+  .opt-a .meta-row,
+  .opt-a .btn        { font-family: 'DM Mono', monospace; }
+  .opt-a .ui-input   { font-family: 'Newsreader', serif; }
+
+  /* ── Option B — Inter + Playfair Display + Lora ───────── */
+  .opt-b .nav-logo,
+  .opt-b .nav-links  { font-family: 'Inter', sans-serif; }
+  .opt-b .hero-quote { font-family: 'Playfair Display', serif; font-size: 20px; }
+  .opt-b .bubble     { font-family: 'Lora', serif; }
+  .opt-b .section-label,
+  .opt-b .speaker-tag,
+  .opt-b .meta-row,
+  .opt-b .btn        { font-family: 'JetBrains Mono', monospace; }
+  .opt-b .ui-input   { font-family: 'Lora', serif; }
+
+  /* ── Option C — Plus Jakarta Sans + Fraunces + Source Serif 4 */
+  .opt-c .nav-logo,
+  .opt-c .nav-links  { font-family: 'Plus Jakarta Sans', sans-serif; }
+  .opt-c .hero-quote { font-family: 'Fraunces', serif; font-size: 21px; }
+  .opt-c .bubble     { font-family: 'Source Serif 4', serif; }
+  .opt-c .section-label,
+  .opt-c .speaker-tag,
+  .opt-c .meta-row,
+  .opt-c .btn        { font-family: 'Space Mono', monospace; }
+  .opt-c .ui-input   { font-family: 'Source Serif 4', serif; }
+</style>
+</head>
+<body>
+<h1>t12n.ai — font options</h1>
+<div class="grid">
+
+  <!-- ── Option A ─────────────────────────────────────── -->
+  <div class="card opt-a">
+    <div class="card-label">A — DM Sans / Instrument Serif / Newsreader</div>
+    <div class="card-body">
+
+      <div class="nav-row">
+        <div class="nav-logo">t12n.ai</div>
+        <div class="nav-links">
+          <span>About</span><span>Services</span><span>Contact</span>
+        </div>
+      </div>
+
+      <div class="hero-quote">
+        "The gap between <em>knowing</em> and doing<br>is costing us."
+      </div>
+
+      <div class="section-label">Conversation</div>
+      <div class="chat-wrap">
+        <div class="bubble bubble-visitor">
+          <div class="speaker-tag tag-visitor">You</div>
+          We're spending more time managing AI tools than actually using them.
+        </div>
+        <div class="bubble bubble-c1">
+          <div class="speaker-tag tag-c1">Alex</div>
+          That's the adoption tax — it peaks around month three and then inverts.
+        </div>
+        <div class="bubble bubble-c2">
+          <div class="speaker-tag tag-c2">Jamie</div>
+          Or you've hired the AI equivalent of a golden retriever in a library.
+        </div>
+      </div>
+
+      <div class="ui-row">
+        <div class="ui-input">The gap between knowing and doing…</div>
+        <div class="btn">↵ Talk</div>
+      </div>
+
+      <div class="meta-row">DM Sans · Instrument Serif · Newsreader · DM Mono</div>
+    </div>
+  </div>
+
+  <!-- ── Option B ─────────────────────────────────────── -->
+  <div class="card opt-b">
+    <div class="card-label">B — Inter / Playfair Display / Lora</div>
+    <div class="card-body">
+
+      <div class="nav-row">
+        <div class="nav-logo">t12n.ai</div>
+        <div class="nav-links">
+          <span>About</span><span>Services</span><span>Contact</span>
+        </div>
+      </div>
+
+      <div class="hero-quote">
+        "The gap between <em>knowing</em> and doing<br>is costing us."
+      </div>
+
+      <div class="section-label">Conversation</div>
+      <div class="chat-wrap">
+        <div class="bubble bubble-visitor">
+          <div class="speaker-tag tag-visitor">You</div>
+          We're spending more time managing AI tools than actually using them.
+        </div>
+        <div class="bubble bubble-c1">
+          <div class="speaker-tag tag-c1">Alex</div>
+          That's the adoption tax — it peaks around month three and then inverts.
+        </div>
+        <div class="bubble bubble-c2">
+          <div class="speaker-tag tag-c2">Jamie</div>
+          Or you've hired the AI equivalent of a golden retriever in a library.
+        </div>
+      </div>
+
+      <div class="ui-row">
+        <div class="ui-input">The gap between knowing and doing…</div>
+        <div class="btn">↵ Talk</div>
+      </div>
+
+      <div class="meta-row">Inter · Playfair Display · Lora · JetBrains Mono</div>
+    </div>
+  </div>
+
+  <!-- ── Option C ─────────────────────────────────────── -->
+  <div class="card opt-c">
+    <div class="card-label">C — Plus Jakarta Sans / Fraunces / Source Serif 4</div>
+    <div class="card-body">
+
+      <div class="nav-row">
+        <div class="nav-logo">t12n.ai</div>
+        <div class="nav-links">
+          <span>About</span><span>Services</span><span>Contact</span>
+        </div>
+      </div>
+
+      <div class="hero-quote">
+        "The gap between <em>knowing</em> and doing<br>is costing us."
+      </div>
+
+      <div class="section-label">Conversation</div>
+      <div class="chat-wrap">
+        <div class="bubble bubble-visitor">
+          <div class="speaker-tag tag-visitor">You</div>
+          We're spending more time managing AI tools than actually using them.
+        </div>
+        <div class="bubble bubble-c1">
+          <div class="speaker-tag tag-c1">Alex</div>
+          That's the adoption tax — it peaks around month three and then inverts.
+        </div>
+        <div class="bubble bubble-c2">
+          <div class="speaker-tag tag-c2">Jamie</div>
+          Or you've hired the AI equivalent of a golden retriever in a library.
+        </div>
+      </div>
+
+      <div class="ui-row">
+        <div class="ui-input">The gap between knowing and doing…</div>
+        <div class="btn">↵ Talk</div>
+      </div>
+
+      <div class="meta-row">Plus Jakarta Sans · Fraunces · Source Serif 4 · Space Mono</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

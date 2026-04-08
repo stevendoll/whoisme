@@ -1,0 +1,295 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  t12n.ai API — conversational icebreaker + turns backend.
+  HTTP API Gateway backed by Lambda + DynamoDB.
+
+Parameters:
+  AcmCertificateArn:
+    Type: String
+    Default: ""
+    Description: ACM certificate ARN for api.t12n.ai (must be in us-east-1)
+
+  ApiDomainName:
+    Type: String
+    Default: "api.t12n.ai"
+    Description: Custom domain for the API
+
+  NotificationEmail:
+    Type: String
+    Default: "steven@dolltribe.com"
+    Description: Verified SES email address for contact form notifications
+
+  SlackmailUrl:
+    Type: String
+    Default: ""
+    Description: Slackmail service base URL for admin notifications
+
+  SlackmailApiKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Slackmail API key
+
+  AdminEmails:
+    Type: String
+    Default: "steven@dolltribe.com"
+    Description: Comma-separated list of authorised admin email addresses
+
+  SiteUrl:
+    Type: String
+    Default: "https://t12n.ai"
+    Description: Public site URL used to build magic link hrefs
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures: [arm64]
+    MemorySize: 512
+    Timeout: 30
+    Tracing: PassThrough
+    Environment:
+      Variables:
+        ICEBREAKERS_TABLE: !Ref IcebreakersTable
+        TURNS_TABLE: !Ref ConversationTurnsTable
+        CONVERSATIONS_TABLE: !Ref ConversationsTable
+        CONTACTS_TABLE: !Ref ContactsTable
+        IDEAS_TABLE: !Ref ConversationIdeasTable
+        POWERTOOLS_SERVICE_NAME: t12n-api
+        LOG_LEVEL: INFO
+        NOTIFICATION_EMAIL: !Ref NotificationEmail
+        SLACKMAIL_URL: !Ref SlackmailUrl
+        SLACKMAIL_API_KEY: !Ref SlackmailApiKey
+        ADMIN_EMAILS: !Ref AdminEmails
+        SITE_URL: !Ref SiteUrl
+        ADMIN_TOKENS_TABLE: !Ref AdminTokensTable
+
+Resources:
+  # ── DynamoDB Tables ─────────────────────────────────────────────────────────
+
+  IcebreakersTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: icebreakers
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: icebreaker_id
+          AttributeType: S
+        - AttributeName: is_active
+          AttributeType: S
+      KeySchema:
+        - AttributeName: icebreaker_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: is_active-index
+          KeySchema:
+            - AttributeName: is_active
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+
+  ConversationTurnsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: conversation_turns
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: conversation_id
+          AttributeType: S
+        - AttributeName: order
+          AttributeType: N
+      KeySchema:
+        - AttributeName: conversation_id
+          KeyType: HASH
+        - AttributeName: order
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+
+  ConversationsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: t12n-conversations
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: conversation_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: conversation_id
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+
+  ContactsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: t12n-contacts
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: contact_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: contact_id
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+
+  ConversationIdeasTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: t12n-conversation-ideas
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: idea_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: idea_id
+          KeyType: HASH
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+
+  AdminTokensTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TableName: t12n-admin-tokens
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: token_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: token_id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+
+  # ── Lambda Function ──────────────────────────────────────────────────────────
+
+  T12nApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: t12n-api
+      CodeUri: src/
+      Handler: api/app.handler
+      ReservedConcurrentExecutions: 10
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref IcebreakersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConversationTurnsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConversationsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ContactsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConversationIdeasTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AdminTokensTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+                - sesv2:SendEmail
+              Resource: "*"
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref T12nHttpApi
+
+  # ── HTTP API ─────────────────────────────────────────────────────────────────
+
+  T12nHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - PATCH
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+        MaxAge: 3000
+
+  # ── Custom Domain ────────────────────────────────────────────────────────────
+
+  ApiCustomDomain:
+    Type: AWS::ApiGatewayV2::DomainName
+    Condition: HasCertificate
+    Properties:
+      DomainName: !Ref ApiDomainName
+      DomainNameConfigurations:
+        - CertificateArn: !Ref AcmCertificateArn
+          EndpointType: REGIONAL
+
+  ApiDomainMapping:
+    Type: AWS::ApiGatewayV2::ApiMapping
+    Condition: HasCertificate
+    DependsOn: ApiCustomDomain
+    Properties:
+      ApiId: !Ref T12nHttpApi
+      DomainName: !Ref ApiDomainName
+      Stage: !Ref T12nHttpApiApiGatewayDefaultStage
+
+  # ── EventBridge Warmup ───────────────────────────────────────────────────────
+
+  WarmupRule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: rate(5 minutes)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt T12nApiFunction.Arn
+          Id: Warmup
+          Input: '{"source": "warmup"}'
+
+  WarmupPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref T12nApiFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${WarmupRule}"
+
+Conditions:
+  HasCertificate: !Not [!Equals [!Ref AcmCertificateArn, ""]]
+
+Outputs:
+  ApiEndpoint:
+    Value: !Sub "https://${T12nHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Description: HTTP API endpoint URL
+
+  ApiCustomDomainTarget:
+    Condition: HasCertificate
+    Value: !GetAtt ApiCustomDomain.RegionalDomainName
+    Description: CNAME target for Cloudflare DNS (gray cloud / proxy OFF)

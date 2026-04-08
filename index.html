@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>t12n.ai — AI Transformation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<!-- Favicons -->
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png">
+<style>
+  :root {
+    --black: #054f59;
+    --white: #f5f0e8;
+    --cream: #ede8de;
+    --accent: #4db6ac;
+    --accent-bright: #66d4c8;
+    --muted: #4a4a4a;
+    --border: rgba(245,240,232,0.12);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'DM Mono', monospace;
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* Custom cursor */
+  .cursor {
+    width: 10px; height: 10px;
+    background: var(--accent);
+    border-radius: 50%;
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+    transition: transform 0.1s;
+    mix-blend-mode: difference;
+  }
+  .cursor-ring {
+    width: 36px; height: 36px;
+    border: 1px solid rgba(77,182,172,0.4);
+    border-radius: 50%;
+    position: fixed;
+    pointer-events: none;
+    z-index: 9998;
+    transform: translate(-50%, -50%);
+    transition: all 0.18s ease;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0.35;
+  }
+
+  /* Nav */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 50;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 28px 48px;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    background: rgba(5,79,89,0.7);
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+  }
+  .logo img {
+    height: 19px;
+    width: auto;
+  }
+  nav ul { list-style: none; display: flex; gap: 40px; }
+  nav ul a {
+    color: rgba(245,240,232,0.5);
+    text-decoration: none;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+  nav ul a:hover { color: var(--accent); }
+
+  /* Hero */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 60px 48px 80px;
+    position: relative;
+    text-align: center;
+  }
+
+  .hero-rabbit {
+    width: 160px;
+    height: 160px;
+    margin-bottom: 32px;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.1s forwards;
+  }
+
+  .hero-eyebrow {
+    font-size: 0.68rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 32px;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.2s forwards;
+  }
+
+  .hero h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(3.5rem, 8vw, 8rem);
+    line-height: 0.92;
+    letter-spacing: -0.03em;
+    max-width: 900px;
+    margin-bottom: 48px;
+    opacity: 0;
+    animation: fadeUp 0.9s 0.35s forwards;
+  }
+  .hero h1 { color: var(--accent); }
+  .hero h1 em { font-style: italic; color: var(--white); }
+
+  .hero-sub {
+    font-size: 0.85rem;
+    color: rgba(245,240,232,0.45);
+    max-width: 400px;
+    line-height: 1.8;
+    margin-bottom: 64px;
+    opacity: 0;
+    animation: fadeUp 0.9s 0.5s forwards;
+  }
+
+  /* Voice box */
+  .voice-container {
+    width: 100%;
+    max-width: 900px;
+    opacity: 0;
+    animation: fadeUp 1s 0.35s forwards;
+  }
+
+  .voice-box {
+    border: 1px solid var(--border);
+    background: rgba(245,240,232,0.03);
+    backdrop-filter: blur(8px);
+    border-radius: 2px;
+    padding: 4px;
+    transition: border-color 0.3s;
+  }
+  .voice-box:focus-within {
+    border-color: rgba(77,182,172,0.4);
+  }
+
+  .input-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  .voice-box .heading-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--accent);
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-style: italic;
+    font-weight: normal;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    padding: 24px 28px;
+    min-height: 120px;
+    text-align: center;
+    cursor: text;
+  }
+  .voice-box .heading-input em {
+    color: var(--white);
+    font-style: italic;
+  }
+  .voice-box .heading-input:empty::before {
+    content: attr(data-placeholder);
+    color: rgba(245,240,232,0.3);
+    font-style: italic;
+  }
+
+  /* Mic button */
+  .mic-btn {
+    background: var(--accent);
+    border: none;
+    border-left: 1px solid var(--accent);
+    color: var(--black);
+    padding: 20px 16px;
+    cursor: none;
+    transition: all 0.2s;
+    display: flex;
+    align-items: flex-start;
+    padding-top: 24px;
+    flex-shrink: 0;
+    border-radius: 0 2px 2px 0;
+  }
+  .mic-btn:hover {
+    background: var(--accent-bright);
+    border-left-color: var(--accent-bright);
+  }
+  .mic-btn.recording {
+    background: #ff6b6b;
+    border-left-color: #ff6b6b;
+    color: white;
+    animation: micPulse 1s ease-in-out infinite;
+  }
+  @keyframes micPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .mic-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+  .voice-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px 10px 28px;
+    border-top: 1px solid var(--border);
+  }
+  .voice-hint {
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(245,240,232,0.25);
+  }
+
+  .speak-btn {
+    background: #FFFF33;
+    color: var(--black);
+    border: none;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 12px 28px;
+    border-radius: 2px;
+    cursor: none;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .speak-btn:hover {
+    background: #FFFF66;
+    transform: translateY(-1px);
+  }
+  .speak-btn:disabled {
+    opacity: 0.5;
+    transform: none;
+  }
+
+  /* Canvas visualizer */
+  .visualizer-wrap {
+    width: 100%;
+    height: 56px;
+    margin-top: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  #vizCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  #vizCanvas.active { opacity: 1; }
+
+  /* Latency badge */
+  .latency-badge {
+    display: inline-block;
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(77,182,172,0.5);
+    background: rgba(77,182,172,0.06);
+    border: 1px solid rgba(77,182,172,0.15);
+    padding: 3px 8px;
+    border-radius: 2px;
+    margin-left: 8px;
+    opacity: 0;
+    transition: opacity 0.4s;
+    vertical-align: middle;
+  }
+  .latency-badge.visible { opacity: 1; }
+
+  /* Status */
+  .status-msg {
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    color: rgba(245,240,232,0.3);
+    text-align: center;
+    margin-top: 14px;
+    min-height: 20px;
+    transition: all 0.3s;
+  }
+  .status-msg.error { color: #ff6b6b; }
+  .status-msg.playing { color: var(--accent); }
+
+  /* Divider */
+  .section-divider {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    border: none;
+    border-top: 1px solid var(--border);
+  }
+
+  /* About section */
+  .about {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 120px 48px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: start;
+  }
+
+  .about-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 24px;
+  }
+
+  .about h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 32px;
+  }
+  .about h2 em { font-style: italic; color: rgba(245,240,232,0.4); }
+
+  .about-text p {
+    font-size: 0.88rem;
+    line-height: 1.85;
+    color: rgba(245,240,232,0.55);
+    margin-bottom: 20px;
+  }
+  .about-text p strong { color: var(--white); font-weight: 400; }
+
+  .about-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    margin-top: 8px;
+  }
+  .stat-block {
+    border: 1px solid var(--border);
+    padding: 28px 24px;
+    background: rgba(245,240,232,0.02);
+  }
+  .stat-num {
+    font-family: 'Instrument Serif', serif;
+    font-size: 2.8rem;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .stat-desc {
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(245,240,232,0.3);
+    line-height: 1.5;
+  }
+
+  /* Services */
+  .services {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 48px 120px;
+  }
+  .services-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 60px;
+  }
+
+  .services-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+  }
+
+  .service-card {
+    border: 1px solid var(--border);
+    padding: 40px 36px;
+    background: rgba(245,240,232,0.02);
+    transition: background 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .service-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 0; height: 2px;
+    background: var(--accent);
+    transition: width 0.4s ease;
+  }
+  .service-card:hover::before { width: 100%; }
+  .service-card:hover { background: rgba(77,182,172,0.04); }
+
+  .service-num {
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: rgba(245,240,232,0.2);
+    margin-bottom: 24px;
+  }
+  .service-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.5rem;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+  .service-desc {
+    font-size: 0.8rem;
+    line-height: 1.8;
+    color: rgba(245,240,232,0.4);
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 40px 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.68rem;
+    color: rgba(245,240,232,0.2);
+    letter-spacing: 0.08em;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+
+  /* Animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Decorative background elements */
+  .bg-grid {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 80px 80px;
+    pointer-events: none;
+    z-index: 0;
+    mask-image: radial-gradient(ellipse at center, transparent 30%, black 100%);
+  }
+
+  section, nav, footer { position: relative; z-index: 1; }
+
+  @media (max-width: 768px) {
+    nav { padding: 20px 24px; }
+    .hero { padding: 40px 24px 60px; }
+    .about { grid-template-columns: 1fr; padding: 80px 24px; gap: 48px; }
+    .services { padding: 0 24px 80px; }
+    .services-grid { grid-template-columns: 1fr; }
+    .about-stats { grid-template-columns: 1fr 1fr; }
+    footer { flex-direction: column; gap: 12px; text-align: center; padding: 32px 24px; }
+    nav ul { gap: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+<div class="bg-grid"></div>
+
+<nav>
+  <a href="#" class="logo">
+    <img src="assets/t12n-ai-name.png" alt="t12n.ai" />
+  </a>
+  <ul>
+    <li><a href="#about">About</a></li>
+    <li><a href="#services">Services</a></li>
+    <li><a href="mailto:hello@t12n.ai">Contact</a></li>
+  </ul>
+</nav>
+
+<section class="hero">
+  <img src="assets/t12n-ai-rabbit.png" alt="t12n.ai rabbit logo" class="hero-rabbit" />
+  <div class="hero-eyebrow">AI Transformation Consulting</div>
+
+  <div class="voice-container">
+    <div class="voice-box">
+      <div class="input-row">
+        <div id="messageInput" class="heading-input" contenteditable="true" data-placeholder="The gap between knowing and doing is costing us.">The gap between <em>knowing</em> and doing is costing us.</div>
+        <button class="mic-btn" id="micBtn" title="Speak your concern (hold to record)">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm0 2a2 2 0 0 0-2 2v6a2 2 0 0 0 4 0V5a2 2 0 0 0-2-2zm7 8a1 1 0 0 1 1 1 8 8 0 0 1-7 7.938V21h2a1 1 0 0 1 0 2H9a1 1 0 0 1 0-2h2v-1.062A8 8 0 0 1 4 12a1 1 0 0 1 2 0 6 6 0 0 0 12 0 1 1 0 0 1 1-1z"/>
+          </svg>
+        </button>
+      </div>
+      <div class="voice-controls">
+        <span class="voice-hint">↵ enter to hear it back<span id="latencyBadge" class="latency-badge"></span></span>
+        <button class="speak-btn" id="speakBtn" onclick="speak()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+          <span class="btn-text" id="btnText">Play</span>
+        </button>
+      </div>
+    </div>
+    <canvas id="vizCanvas" width="640" height="56"></canvas>
+    <div class="status-msg" id="statusMsg"></div>
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<section class="about" id="about">
+  <div class="about-left">
+    <div class="about-label">About</div>
+    <h2>Built on urgency.<br><em>Grounded in reality.</em></h2>
+    <div class="about-stats">
+      <div class="stat-block">
+        <div class="stat-num">12+</div>
+        <div class="stat-desc">Years in enterprise technology</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num">40+</div>
+        <div class="stat-desc">Organizations transformed</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num">$2B+</div>
+        <div class="stat-desc">In value unlocked</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-num">Day 1</div>
+        <div class="stat-desc">Mindset, always</div>
+      </div>
+    </div>
+  </div>
+  <div class="about-text">
+    <p>I founded <strong>AI Transformation (t12n.ai)</strong> because I kept seeing the same pattern: smart leaders at great companies, frozen. Not by lack of ambition — but by the gap between knowing AI matters and knowing what to actually do about it.</p>
+    <p>My work sits at the intersection of <strong>executive strategy, technical implementation, and organizational change</strong>. I don't just advise — I embed, build, and help you run.</p>
+    <p>Before t12n, I led AI initiatives at Fortune 500 companies and venture-backed startups alike. I've seen what separates organizations that thrive in this moment from those that don't. It's almost never about the technology.</p>
+    <p>It's about <strong>speed of decision, clarity of ownership, and the courage to move before everything is certain</strong>. That's what I help you build.</p>
+  </div>
+</section>
+
+<section class="services" id="services">
+  <div class="services-label">What I do</div>
+  <div class="services-grid">
+    <div class="service-card">
+      <div class="service-num">01</div>
+      <div class="service-title">AI Strategy & Roadmapping</div>
+      <div class="service-desc">From audit to action plan in 30 days. Where are you losing ground? Where can AI compound your advantage? We map it, prioritize it, and make it executable.</div>
+    </div>
+    <div class="service-card">
+      <div class="service-num">02</div>
+      <div class="service-title">Executive Alignment</div>
+      <div class="service-desc">The hardest part of AI transformation isn't the AI. I facilitate leadership alignment that turns cautious committees into decisive sponsors.</div>
+    </div>
+    <div class="service-card">
+      <div class="service-num">03</div>
+      <div class="service-title">Implementation Oversight</div>
+      <div class="service-desc">I embed with your teams to ensure strategy becomes working systems. From vendor selection to go-live, with zero tolerance for vaporware.</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>© 2026 AI Transformation — <a href="https://t12n.ai">t12n.ai</a></span>
+  <span>hello@t12n.ai</span>
+  <span>Built with urgency.</span>
+</footer>
+
+<script type="module">
+  // ── Cursor ──────────────────────────────────────────────────────────────────
+  const cursor = document.getElementById('cursor');
+  const ring   = document.getElementById('cursorRing');
+  let mx = 0, my = 0, rx = 0, ry = 0;
+  document.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY;
+    cursor.style.left = mx + 'px';
+    cursor.style.top  = my + 'px';
+  });
+  (function animateRing() {
+    rx += (mx - rx) * 0.12;
+    ry += (my - ry) * 0.12;
+    ring.style.left = rx + 'px';
+    ring.style.top  = ry + 'px';
+    requestAnimationFrame(animateRing);
+  })();
+
+  // ── Web Audio visualizer ────────────────────────────────────────────────────
+  const canvas  = document.getElementById('vizCanvas');
+  const ctx2d   = canvas.getContext('2d');
+  let audioCtx, analyser, vizRaf, sourceNode;
+
+  function startVisualizerFromCtx() {
+    // analyser already connected by speak() — just start drawing
+    if (!analyser) {
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.connect(audioCtx.destination);
+    }
+    canvas.classList.add('active');
+    const buf = new Uint8Array(analyser.frequencyBinCount);
+
+    function draw() {
+      vizRaf = requestAnimationFrame(draw);
+      analyser.getByteFrequencyData(buf);
+      const W = canvas.width, H = canvas.height;
+      ctx2d.clearRect(0, 0, W, H);
+      const barW = (W / buf.length) * 2.2;
+      let x = 0;
+      for (let i = 0; i < buf.length; i++) {
+        const ratio = buf[i] / 255;
+        const barH  = ratio * H;
+        const alpha = 0.15 + ratio * 0.85;
+        ctx2d.fillStyle = `rgba(77,182,172,${alpha})`;
+        ctx2d.fillRect(x, H - barH, barW - 1, barH);
+        x += barW;
+      }
+    }
+    draw();
+  }
+
+  // Legacy: kept for any future HTMLAudioElement use
+  function startVisualizer(audioEl) {
+    if (!audioCtx) audioCtx = new AudioContext();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    const src = audioCtx.createMediaElementSource(audioEl);
+    src.connect(analyser);
+    analyser.connect(audioCtx.destination);
+    startVisualizerFromCtx();
+  }
+
+  function stopVisualizer() {
+    if (vizRaf) cancelAnimationFrame(vizRaf);
+    ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.classList.remove('active');
+  }
+
+  // Resize canvas to match CSS size
+  const ro = new ResizeObserver(() => {
+    canvas.width  = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+  });
+  ro.observe(canvas);
+
+  // ── WebSocket streaming TTS ─────────────────────────────────────────────────
+  const API_KEY = 'sk_car_MVSXyvKqAjPQ2nFk6fZVfQ';
+  const VOICE_ID = 'a0e99841-438c-4a64-b679-ae501e7d6091';
+
+  window.speak = async function speak() {
+    const btn       = document.getElementById('speakBtn');
+    const btnText   = document.getElementById('btnText');
+    const statusMsg = document.getElementById('statusMsg');
+    const latBadge  = document.getElementById('latencyBadge');
+    const text      = document.getElementById('messageInput').textContent.trim();
+
+    if (!text) return;
+
+    btn.disabled = true;
+    btnText.textContent = '...';
+    statusMsg.className = 'status-msg';
+    statusMsg.textContent = 'Connecting...';
+    latBadge.classList.remove('visible');
+
+    performance.mark('tts-start');
+
+    try {
+      if (!audioCtx) audioCtx = new AudioContext();
+      await audioCtx.resume();
+
+      // Create analyser node once; BufferSource nodes connect to it
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.connect(audioCtx.destination);
+
+      const SAMPLE_RATE = 44100;
+      const wsUrl = `wss://api.cartesia.ai/tts/websocket?api_key=${API_KEY}&cartesia_version=2024-06-10`;
+      const ws = new WebSocket(wsUrl);
+      ws.binaryType = 'arraybuffer';
+
+      let nextPlayTime = 0;
+      let firstChunk = true;
+
+      const scheduleChunk = (pcm) => {
+        if (firstChunk) {
+          performance.mark('tts-first-chunk');
+          performance.measure('tts-latency', 'tts-start', 'tts-first-chunk');
+          const ms = Math.round(performance.getEntriesByName('tts-latency')[0].duration);
+          latBadge.textContent = `${ms}ms`;
+          latBadge.classList.add('visible');
+          firstChunk = false;
+          // Start playback in 20ms — just enough to avoid underrun
+          nextPlayTime = audioCtx.currentTime + 0.02;
+          statusMsg.className = 'status-msg playing';
+          statusMsg.textContent = '▶ Playing...';
+          btnText.textContent = 'Playing';
+          startVisualizerFromCtx();
+        }
+        const audioBuf = audioCtx.createBuffer(1, pcm.length, SAMPLE_RATE);
+        audioBuf.copyToChannel(pcm, 0);
+        const src = audioCtx.createBufferSource();
+        src.buffer = audioBuf;
+        src.connect(analyser);
+        src.start(nextPlayTime);
+        nextPlayTime += audioBuf.duration;
+      };
+
+      ws.onopen = () => {
+        statusMsg.textContent = 'Synthesizing...';
+        ws.send(JSON.stringify({
+          context_id: crypto.randomUUID(),
+          model_id: 'sonic-english',
+          transcript: text,
+          voice: { mode: 'id', id: VOICE_ID },
+          output_format: { container: 'raw', encoding: 'pcm_f32le', sample_rate: SAMPLE_RATE },
+          continue: false
+        }));
+      };
+
+      ws.onmessage = (e) => {
+        if (e.data instanceof ArrayBuffer) {
+          scheduleChunk(new Float32Array(e.data));
+        } else {
+          try {
+            const msg = JSON.parse(e.data);
+            if (msg.type === 'error') throw new Error(JSON.stringify(msg));
+            if (msg.data) {
+              // base64 fallback
+              const bin = atob(msg.data);
+              const bytes = new Uint8Array(bin.length);
+              for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+              scheduleChunk(new Float32Array(bytes.buffer));
+            }
+          } catch (err) {
+            console.error('WS msg error:', err);
+          }
+        }
+      };
+
+      ws.onerror = () => {
+        stopVisualizer();
+        resetBtn();
+        statusMsg.className = 'status-msg error';
+        statusMsg.textContent = 'WebSocket connection failed';
+      };
+
+      ws.onclose = () => {
+        if (firstChunk) {
+          // Closed before any audio — show error
+          stopVisualizer();
+          resetBtn();
+          statusMsg.className = 'status-msg error';
+          statusMsg.textContent = 'No audio received';
+          return;
+        }
+        // Poll until scheduled audio finishes, then clean up
+        const poll = () => {
+          if (audioCtx.currentTime < nextPlayTime) {
+            setTimeout(poll, 100);
+          } else {
+            stopVisualizer();
+            resetBtn();
+            statusMsg.textContent = '';
+          }
+        };
+        poll();
+      };
+
+    } catch (err) {
+      console.error('TTS error:', err);
+      stopVisualizer();
+      resetBtn();
+      statusMsg.className = 'status-msg error';
+      statusMsg.textContent = `Error: ${err.message}`;
+      return;
+    }
+  };
+
+  function resetBtn() {
+    const btn     = document.getElementById('speakBtn');
+    const btnText = document.getElementById('btnText');
+    btn.disabled = false;
+    btnText.textContent = 'Play';
+  }
+
+  // ── Web Speech API mic input ─────────────────────────────────────────────────
+  const micBtn = document.getElementById('micBtn');
+  let recognition = null;
+
+  if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SR();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    let isRecording = false;
+
+    recognition.onresult = e => {
+      const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+      document.getElementById('messageInput').textContent = transcript;
+    };
+
+    recognition.onend = () => {
+      isRecording = false;
+      micBtn.classList.remove('recording');
+      micBtn.title = 'Speak your concern';
+      // Auto-submit if there's text
+      const text = document.getElementById('messageInput').textContent.trim();
+      if (text) speak();
+    };
+
+    recognition.onerror = e => {
+      isRecording = false;
+      micBtn.classList.remove('recording');
+      const statusMsg = document.getElementById('statusMsg');
+      statusMsg.className = 'status-msg error';
+      statusMsg.textContent = `Mic error: ${e.error}`;
+    };
+
+    micBtn.addEventListener('click', () => {
+      if (isRecording) {
+        recognition.stop();
+      } else {
+        isRecording = true;
+        micBtn.classList.add('recording');
+        micBtn.title = 'Listening… click to stop';
+        document.getElementById('statusMsg').className = 'status-msg';
+        document.getElementById('statusMsg').textContent = 'Listening...';
+        recognition.start();
+      }
+    });
+  } else {
+    // No speech API — hide mic button gracefully
+    micBtn.style.display = 'none';
+  }
+
+  // ── Enter key submits ────────────────────────────────────────────────────────
+  document.getElementById('messageInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      speak();
+    }
+  });
+</script>
+</body>
+</html>
