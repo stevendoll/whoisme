@@ -3,21 +3,21 @@ from pydantic.alias_generators import to_camel
 from typing import Literal
 
 
-class T12nModel(BaseModel):
+class WhoIsMeModel(BaseModel):
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
     )
 
 
-class Icebreaker(T12nModel):
+class Icebreaker(WhoIsMeModel):
     icebreaker_id: str
     text: str
     is_active: str = "true"
     created_at: str
 
 
-class IcebreakerResponse(T12nModel):
+class IcebreakerResponse(WhoIsMeModel):
     id: str
     text: str
 
@@ -25,14 +25,14 @@ class IcebreakerResponse(T12nModel):
 Speaker = Literal["visitor", "consultant1", "consultant2"]
 
 
-class TurnRequest(T12nModel):
+class TurnRequest(WhoIsMeModel):
     order: int = Field(ge=0)
     text: str = Field(min_length=1, max_length=2000)
     speaker: Speaker
     voices: dict[str, str] | None = None  # {speaker: cartesia_voice_id}
 
 
-class Turn(T12nModel):
+class Turn(WhoIsMeModel):
     conversation_id: str
     order: int
     text: str
@@ -42,7 +42,7 @@ class Turn(T12nModel):
     created_at: str
 
 
-class ConsultantReply(T12nModel):
+class ConsultantReply(WhoIsMeModel):
     order: int
     text: str
     speaker: Literal["consultant1", "consultant2"]
@@ -50,12 +50,12 @@ class ConsultantReply(T12nModel):
     emotion: str | None = None
 
 
-class TurnResponse(T12nModel):
+class TurnResponse(WhoIsMeModel):
     turn: Turn
     consultant_replies: list[ConsultantReply] | None = None
 
 
-class Conversation(T12nModel):
+class Conversation(WhoIsMeModel):
     conversation_id: str
     created_at: str
     preview: str
@@ -63,13 +63,13 @@ class Conversation(T12nModel):
     used_ideas: list[str] = Field(default_factory=list)
 
 
-class ContactRequest(T12nModel):
+class ContactRequest(WhoIsMeModel):
     name: str = Field(min_length=1, max_length=100)
     email: str = Field(min_length=5, max_length=200)
     message: str = Field(min_length=1, max_length=2000)
 
 
-class Idea(T12nModel):
+class Idea(WhoIsMeModel):
     idea_id: str
     text: str
     description: str

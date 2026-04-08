@@ -1,5 +1,5 @@
 """
-t12n.ai API — Lambda handler.
+WhoIsMe API — Lambda handler.
 
 Routes:
   GET  /conversations/icebreakers           — random active icebreaker
@@ -31,8 +31,8 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 import db  # noqa: F401
 from api.routers import icebreakers, turns, admin, contacts, conversations, ideas_admin, errors, auth
 
-logger  = Logger(service="t12n-api")
-metrics = Metrics(namespace="T12nApi")
+logger  = Logger(service="whoisme-api")
+metrics = Metrics(namespace="WhoIsMeApi")
 
 api = APIGatewayHttpResolver(cors=CORSConfig(allow_origin="*"))
 

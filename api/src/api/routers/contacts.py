@@ -10,7 +10,7 @@ from aws_lambda_powertools.event_handler.exceptions import BadRequestError
 import db
 from models import ContactRequest
 
-logger        = Logger(service="t12n-api")
+logger        = Logger(service="whoisme-api")
 router        = Router()
 _ses          = boto3.client("sesv2", region_name="us-east-1")
 _NOTIFY_EMAIL = os.environ.get("NOTIFICATION_EMAIL", "")
@@ -27,7 +27,7 @@ def _send_notification(contact_id: str, name: str, email: str, message: str) -> 
             ReplyToAddresses=[email],
             Content={
                 "Simple": {
-                    "Subject": {"Data": f"t12n.ai contact: {name}"},
+                    "Subject": {"Data": f"WhoIsMe contact: {name}"},
                     "Body": {
                         "Text": {
                             "Data": (

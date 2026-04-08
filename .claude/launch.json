@@ -2,11 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "t12n-ui",
+      "name": "whoisme",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5173,
-      "cwd": "/Users/steven/Developer/t12n/ui"
+      "cwd": "ui"
     }
   ]
 }

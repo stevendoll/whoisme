@@ -14,7 +14,7 @@ REGION   = "us-east-1"
 
 _kwargs  = {"endpoint_url": ENDPOINT} if ENDPOINT else {}
 dynamodb = boto3.resource("dynamodb", region_name=REGION, **_kwargs)
-table    = dynamodb.Table(os.environ.get("IDEAS_TABLE", "t12n-conversation-ideas"))
+table    = dynamodb.Table(os.environ.get("IDEAS_TABLE", "whoisme-conversation-ideas"))
 
 IDEAS = [
     {

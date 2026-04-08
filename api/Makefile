@@ -32,8 +32,8 @@ sam-build:  ## Build Lambda package
 deploy-api:  ## SAM build + deploy
 	sam build && sam deploy
 
-logs-api:  ## Tail CloudWatch logs for T12nApiFunction
-	sam logs -n T12nApiFunction --tail
+logs-api:  ## Tail CloudWatch logs for WhoIsMeApiFunction
+	sam logs -n WhoIsMeApiFunction --tail
 
 smoke-test:  ## Hit key endpoints and verify responses
 	pipenv run python ../scripts/smoke_test.py

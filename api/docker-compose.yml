@@ -1,7 +1,7 @@
 services:
   dynamodb-local:
     image: amazon/dynamodb-local:latest
-    container_name: t12n-dynamodb-local
+    container_name: whoisme-dynamodb-local
     ports:
       - "8000:8000"
     command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"

@@ -4,7 +4,7 @@ export default function Nav() {
   return (
     <nav>
       <a href="#">
-        <img src="/assets/t12n-ai-name.png" alt="t12n.ai" />
+        <img src="/assets/t12n-ai-name.png" alt="WhoIsMe" />
       </a>
       <ul>
         {!isHistory && (

@@ -9,7 +9,7 @@ export default function Home() {
       <Nav />
 
       <section id="hero">
-        <img src="/assets/t12n-ai-rabbit.png" alt="t12n.ai rabbit logo" />
+        <img src="/assets/t12n-ai-rabbit.png" alt="WhoIsMe logo" />
         <div className="label">AI Transformation Consulting</div>
         <VoiceBox />
       </section>
@@ -35,9 +35,9 @@ export default function Home() {
           ))}
         </div>
         <div className="about-body">
-          <p>I founded <strong>AI Transformation (t12n.ai)</strong> because I kept seeing the same pattern: smart leaders at great companies, frozen. Not by lack of ambition — but by the gap between knowing AI matters and knowing what to actually do about it.</p>
+          <p>I founded <strong>WhoIsMe</strong> because I kept seeing the same pattern: smart leaders at great companies, frozen. Not by lack of ambition — but by the gap between knowing AI matters and knowing what to actually do about it.</p>
           <p>My work sits at the intersection of <strong>executive strategy, technical implementation, and organizational change</strong>. I don't just advise — I embed, build, and help you run.</p>
-          <p>Before t12n, I led AI initiatives at Fortune 500 companies and venture-backed startups alike. I've seen what separates organizations that thrive in this moment from those that don't. It's almost never about the technology.</p>
+          <p>Before WhoIsMe, I led AI initiatives at Fortune 500 companies and venture-backed startups alike. I've seen what separates organizations that thrive in this moment from those that don't. It's almost never about the technology.</p>
           <p>It's about <strong>speed of decision, clarity of ownership, and the courage to move before everything is certain</strong>. That's what I help you build.</p>
         </div>
       </section>

@@ -8,12 +8,12 @@ from aws_lambda_powertools.event_handler.api_gateway import Router
 
 import db
 
-logger        = Logger(service="t12n-api")
+logger        = Logger(service="whoisme-api")
 router        = Router()
 _ses          = boto3.client("sesv2", region_name="us-east-1")
 _FROM_EMAIL   = os.environ.get("NOTIFICATION_EMAIL", "")
 _ADMIN_EMAILS = {e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()}
-_SITE_URL     = os.environ.get("SITE_URL", "https://t12n.ai")
+_SITE_URL     = os.environ.get("SITE_URL", "https://whoisme.io")
 _TOKEN_TTL_S  = 3600  # 1 hour
 
 
@@ -25,7 +25,7 @@ def _send_magic_link(to_email: str, token: str) -> None:
             Destination={"ToAddresses": [to_email]},
             Content={
                 "Simple": {
-                    "Subject": {"Data": "Your t12n.ai admin link"},
+                    "Subject": {"Data": "Your WhoIsMe admin link"},
                     "Body": {
                         "Text": {
                             "Data": (

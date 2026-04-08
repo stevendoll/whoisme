@@ -28,7 +28,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::600775874112:role/t12n-github-deploy
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Set up Node.js
@@ -63,4 +63,4 @@ jobs:
             --paths "/*"
 
       - name: Smoke test
-        run: curl -sf https://t12n.ai > /dev/null && echo "UI smoke test passed"
+        run: curl -sf https://whoisme.io > /dev/null && echo "UI smoke test passed"

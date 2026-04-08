@@ -7,7 +7,7 @@ from aws_lambda_powertools.event_handler.exceptions import NotFoundError
 
 import db
 
-logger = Logger(service="t12n-api")
+logger = Logger(service="whoisme-api")
 router = Router()
 
 

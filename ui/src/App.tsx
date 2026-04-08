@@ -6,7 +6,7 @@ import AdminPage from './pages/AdminPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 import { postAdminVerify } from './lib/api'
 
-const STORAGE_KEY = 't12n_admin'
+const STORAGE_KEY = 'whoisme_admin'
 
 function useHashRoute() {
   const [hash, setHash] = useState(window.location.hash)

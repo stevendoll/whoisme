@@ -12,7 +12,7 @@ on:
 env:
   AWS_REGION: us-east-1
   AWS_DEFAULT_REGION: us-east-1
-  STACK_NAME: t12n-api
+  STACK_NAME: whoisme-api
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -57,7 +57,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::600775874112:role/t12n-github-deploy
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Set up SAM CLI
@@ -87,9 +87,43 @@ jobs:
             --no-fail-on-empty-changeset \
             --parameter-overrides \
               "AcmCertificateArn=${{ secrets.ACM_CERTIFICATE_ARN }}" \
-              "ApiDomainName=api.t12n.ai" \
+              "ApiDomainName=api.whoisme.io" \
               "SlackmailUrl=${{ secrets.SLACKMAIL_URL }}" \
               "SlackmailApiKey=${{ secrets.SLACKMAIL_API_KEY }}"
+
+      - name: Update api.whoisme.io DNS
+        run: |
+          APIGW_DOMAIN=$(aws cloudformation describe-stacks \
+            --stack-name $STACK_NAME \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiCustomDomainTarget`].OutputValue' \
+            --output text)
+
+          if [ -z "$APIGW_DOMAIN" ] || [ "$APIGW_DOMAIN" = "None" ]; then
+            echo "No custom domain target in stack outputs — skipping DNS update"
+            exit 0
+          fi
+          echo "API Gateway domain: $APIGW_DOMAIN"
+
+          RECORD_ID=$(curl -sf \
+            "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records?name=api.whoisme.io&type=CNAME" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" | \
+            python3 -c "import sys,json; r=json.load(sys.stdin)['result']; print(r[0]['id'] if r else '')")
+
+          PAYLOAD="{\"type\":\"CNAME\",\"name\":\"api.whoisme.io\",\"content\":\"$APIGW_DOMAIN\",\"ttl\":1,\"proxied\":false}"
+
+          if [ -n "$RECORD_ID" ]; then
+            curl -sf -X PUT \
+              "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records/$RECORD_ID" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" | python3 -c "import sys,json; r=json.load(sys.stdin); print('Updated' if r['success'] else r['errors'])"
+          else
+            curl -sf -X POST \
+              "https://api.cloudflare.com/client/v4/zones/${{ secrets.CLOUDFLARE_ZONE_ID }}/dns_records" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" | python3 -c "import sys,json; r=json.load(sys.stdin); print('Created' if r['success'] else r['errors'])"
+          fi
 
       - name: Wait for API Gateway propagation
         run: sleep 30
@@ -108,4 +142,4 @@ jobs:
       - name: Run smoke tests
         run: pipenv run python ../scripts/smoke_test.py
         env:
-          SMOKE_BASE_URL: https://api.t12n.ai
+          SMOKE_BASE_URL: https://api.whoisme.io
