@@ -18,7 +18,7 @@ def _extract_emotion(text: str) -> tuple[str, str | None]:
         return text[m.end():].strip(), m.group(1)
     return text, None
 
-logger = Logger(service="t12n-api")
+logger = Logger(service="whoisme-api")
 router = Router()
 
 

@@ -15,13 +15,13 @@ SESSIONS_DIR = Path(__file__).parent.parent / "docs" / "sessions"
 
 def main():
     # Claude Code passes session data via stdin as JSON
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     try:
         data = json.load(sys.stdin)
     except (json.JSONDecodeError, EOFError):
-        return
+        data = {}
 
     session_id = data.get("session_id", "unknown")
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     filename = f"{timestamp}-{session_id[:8]}.json"
 
     SESSIONS_DIR.mkdir(parents=True, exist_ok=True)

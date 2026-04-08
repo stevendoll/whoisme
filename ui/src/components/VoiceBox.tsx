@@ -56,35 +56,35 @@ function formatText(text: string): string {
 
 function newConversationId() {
   const id = crypto.randomUUID()
-  sessionStorage.setItem('t12n_conversation_id', id)
-  sessionStorage.removeItem('t12n_order')
+  sessionStorage.setItem('whoisme_conversation_id', id)
+  sessionStorage.removeItem('whoisme_order')
   return id
 }
 
 function newVoiceIds() {
   const voices = assignVoices()
-  sessionStorage.setItem('t12n_voices', JSON.stringify(voices))
+  sessionStorage.setItem('whoisme_voices', JSON.stringify(voices))
   return voices
 }
 
 function getStoredOrder(): number {
-  return parseInt(sessionStorage.getItem('t12n_order') ?? '0', 10) || 0
+  return parseInt(sessionStorage.getItem('whoisme_order') ?? '0', 10) || 0
 }
 
 function saveOrder(n: number) {
-  sessionStorage.setItem('t12n_order', String(n))
+  sessionStorage.setItem('whoisme_order', String(n))
 }
 
 export default function VoiceBox() {
   const [conversationId, setConversationId] = useState(() => {
-    const stored = sessionStorage.getItem('t12n_conversation_id')
+    const stored = sessionStorage.getItem('whoisme_conversation_id')
     if (stored) return stored
     return newConversationId()
   })
 
   // Randomly assigned once per session, persisted across page reloads
   const [voiceIds, setVoiceIds] = useState<Record<Speaker, string>>(() => {
-    const stored = sessionStorage.getItem('t12n_voices')
+    const stored = sessionStorage.getItem('whoisme_voices')
     if (stored) { try { return JSON.parse(stored) as Record<Speaker, string> } catch { /* fall through */ } }
     return newVoiceIds()
   })

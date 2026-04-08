@@ -3,7 +3,7 @@ import pathlib
 import boto3
 from aws_lambda_powertools import Logger
 
-logger = Logger(service="t12n-api")
+logger = Logger(service="whoisme-api")
 
 _bedrock = boto3.client("bedrock-runtime", region_name="us-east-1")
 

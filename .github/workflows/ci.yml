@@ -81,7 +81,7 @@ jobs:
 
       - name: Build (stub env vars)
         env:
-          VITE_API_URL: https://api.t12n.ai
+          VITE_API_URL: https://api.whoisme.io
           VITE_CARTESIA_API_KEY: stub
           VITE_CARTESIA_VOICE_ID: stub
         run: npm run build

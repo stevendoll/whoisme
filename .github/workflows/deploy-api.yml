@@ -12,7 +12,7 @@ on:
 env:
   AWS_REGION: us-east-1
   AWS_DEFAULT_REGION: us-east-1
-  STACK_NAME: t12n-api
+  STACK_NAME: whoisme-api
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -57,7 +57,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::600775874112:role/t12n-github-deploy
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Set up SAM CLI
@@ -87,25 +87,33 @@ jobs:
             --no-fail-on-empty-changeset \
             --parameter-overrides \
               "AcmCertificateArn=${{ secrets.ACM_CERTIFICATE_ARN }}" \
-              "ApiDomainName=api.t12n.ai" \
+              "ApiDomainName=api.whoisme.io" \
               "SlackmailUrl=${{ secrets.SLACKMAIL_URL }}" \
               "SlackmailApiKey=${{ secrets.SLACKMAIL_API_KEY }}"
 
-      - name: Wait for API Gateway propagation
-        run: sleep 30
+      - name: Update api.whoisme.io DNS
+        run: |
+          APIGW_DOMAIN=$(aws cloudformation describe-stacks \
+            --stack-name $STACK_NAME \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiCustomDomainTarget`].OutputValue' \
+            --output text)
 
-      - name: Set up Python for smoke tests
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+          if [ -z "$APIGW_DOMAIN" ] || [ "$APIGW_DOMAIN" = "None" ]; then
+            echo "No custom domain target in stack outputs — skipping DNS update"
+            exit 0
+          fi
 
-      - name: Install pipenv
-        run: pip install pipenv
+          CF_ZONE_ID=${{ secrets.CLOUDFLARE_ZONE_ID }} \
+          CF_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }} \
+          ../scripts/cf-dns-upsert.sh api.whoisme.io "$APIGW_DOMAIN"
 
-      - name: Install dependencies
-        run: pipenv install
-
-      - name: Run smoke tests
-        run: pipenv run python ../scripts/smoke_test.py
+      - name: Smoke tests (with retry)
+        run: |
+          for i in 1 2 3 4 5; do
+            sleep 15
+            pipenv run python ../scripts/smoke_test.py && exit 0
+            echo "Attempt $i failed, retrying..."
+          done
+          exit 1
         env:
-          SMOKE_BASE_URL: https://api.t12n.ai
+          SMOKE_BASE_URL: https://api.whoisme.io

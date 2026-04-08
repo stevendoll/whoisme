@@ -1,7 +1,7 @@
 version = 0.1
 
 [default.global.parameters]
-stack_name = "t12n-api"
+stack_name = "whoisme-api"
 
 [default.build.parameters]
 cached = true

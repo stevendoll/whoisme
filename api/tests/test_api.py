@@ -1,5 +1,5 @@
 """
-Unit tests for t12n API routers.
+Unit tests for WhoIsMe API routers.
 Uses moto to mock DynamoDB — no real AWS calls.
 """
 
@@ -20,8 +20,8 @@ os.environ.setdefault("CONVERSATIONS_TABLE",  "conversations")
 os.environ.setdefault("CONTACTS_TABLE",       "contacts")
 os.environ.setdefault("IDEAS_TABLE",          "conversation_ideas")
 os.environ.setdefault("AWS_DEFAULT_REGION",   "us-east-1")
-os.environ.setdefault("POWERTOOLS_SERVICE_NAME",        "t12n-api")
-os.environ.setdefault("POWERTOOLS_METRICS_NAMESPACE",   "T12nApi")
+os.environ.setdefault("POWERTOOLS_SERVICE_NAME",        "whoisme-api")
+os.environ.setdefault("POWERTOOLS_METRICS_NAMESPACE",   "WhoIsMeApi")
 
 
 def _apigw_event(method: str, path: str, body: dict | None = None, path_params: dict | None = None) -> dict:

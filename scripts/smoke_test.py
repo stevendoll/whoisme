@@ -1,6 +1,6 @@
 """
-Post-deploy smoke tests for t12n API.
-Usage: SMOKE_BASE_URL=https://api.t12n.ai pipenv run python scripts/smoke_test.py
+Post-deploy smoke tests for WhoIsMe API.
+Usage: SMOKE_BASE_URL=https://api.whoisme.io pipenv run python scripts/smoke_test.py
 """
 
 import os
@@ -8,7 +8,7 @@ import sys
 import uuid
 import requests
 
-BASE_URL = os.environ.get("SMOKE_BASE_URL", "https://api.t12n.ai").rstrip("/")
+BASE_URL = os.environ.get("SMOKE_BASE_URL", "https://api.whoisme.io").rstrip("/")
 
 
 def test_get_icebreaker():

@@ -7,7 +7,7 @@ from boto3.dynamodb.conditions import Key
 
 import db
 
-logger = Logger(service="t12n-api")
+logger = Logger(service="whoisme-api")
 router = Router()
 
 

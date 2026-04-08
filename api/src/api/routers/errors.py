@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from aws_lambda_powertools import Logger
 from aws_lambda_powertools.event_handler.api_gateway import Router
 
-logger         = Logger(service="t12n-api")
+logger         = Logger(service="whoisme-api")
 router         = Router()
 _SLACKMAIL_URL = os.environ.get("SLACKMAIL_URL", "")
 _SLACKMAIL_KEY = os.environ.get("SLACKMAIL_API_KEY", "")
@@ -41,6 +41,6 @@ def report_error():
 
     logger.warning(f"Client error reported — type={error_type} message={message}")
 
-    _send_slack(f"⚠️ TTS failure on t12n.ai\nError: {message}\nTime: {now}")
+    _send_slack(f"⚠️ TTS failure on WhoIsMe\nError: {message}\nTime: {now}")
 
     return {"ok": True}

@@ -37,8 +37,8 @@ deploy-ui:  ## Vite build + S3 sync + CloudFront invalidate
 	aws s3 sync ui/dist/ s3://$$S3_BUCKET --delete
 	aws cloudfront create-invalidation --distribution-id $$CLOUDFRONT_DISTRIBUTION_ID --paths "/*"
 
-logs-api:  ## Tail CloudWatch logs for T12nApiFunction
+logs-api:  ## Tail CloudWatch logs for WhoIsMeApiFunction
 	$(MAKE) -C api logs-api
 
 smoke-test:  ## Hit key endpoints and verify responses
-	SMOKE_BASE_URL=https://api.t12n.ai pipenv run python scripts/smoke_test.py
+	SMOKE_BASE_URL=https://api.whoisme.io pipenv run python scripts/smoke_test.py

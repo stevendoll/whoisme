@@ -5,8 +5,7 @@
 # Claude Code — track settings.json but not local overrides
 .claude/settings.local.json
 
-# Session logs
-docs/sessions/
+# Session logs tracked intentionally for analysis (docs/sessions/)
 
 # Python
 __pycache__/
@@ -18,7 +17,13 @@ api/.aws-sam/
 # Node
 ui/node_modules/
 ui/dist/
+ui/.vite/
 
 # SAM
 .aws-sam/
 samconfig.toml.backup
+
+# Scratch / stale assets
+*.pdf
+t12n-mockup.png
+font-preview/

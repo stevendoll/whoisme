@@ -1,0 +1,180 @@
+name: Setup Infrastructure (run once)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  S3_BUCKET: whoisme-ui-prod
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  setup:
+    name: Provision infrastructure
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get AWS account ID
+        id: account
+        run: echo "id=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_OUTPUT
+
+      # ── ACM cert validation ────────────────────────────────────────────────────
+
+      - name: Add ACM cert validation CNAME to Cloudflare
+        run: |
+          CF_ZONE_ID=${{ secrets.CLOUDFLARE_ZONE_ID }} \
+          CF_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }} \
+          scripts/cf-dns-upsert.sh \
+            "_b28ed18e57bd42666bae8cca859c2f77.whoisme.io" \
+            "_96fbb9b147f0098cec61e1dcacaa34e7.jkddzztszm.acm-validations.aws."
+
+      # ── Cert validation + OAC creation run in parallel ────────────────────────
+
+      - name: Validate cert and create OAC
+        id: parallel
+        run: |
+          # Start cert wait in background
+          aws acm wait certificate-validated \
+            --certificate-arn ${{ secrets.ACM_CERTIFICATE_ARN }} \
+            --region $AWS_REGION &
+          CERT_PID=$!
+
+          # Create OAC concurrently
+          OAC_ID=$(aws cloudfront list-origin-access-controls \
+            --query "OriginAccessControlList.Items[?Name=='whoisme-oac'].Id" \
+            --output text)
+
+          if [ -z "$OAC_ID" ] || [ "$OAC_ID" = "None" ]; then
+            OAC_ID=$(aws cloudfront create-origin-access-control \
+              --origin-access-control-config '{
+                "Name": "whoisme-oac",
+                "Description": "OAC for whoisme-ui-prod",
+                "SigningProtocol": "sigv4",
+                "SigningBehavior": "always",
+                "OriginAccessControlOriginType": "s3"
+              }' \
+              --query 'OriginAccessControl.Id' --output text)
+            echo "Created OAC: $OAC_ID"
+          else
+            echo "OAC already exists: $OAC_ID"
+          fi
+
+          # Wait for cert validation
+          wait $CERT_PID
+          echo "Certificate validated."
+
+          echo "oac_id=$OAC_ID" >> $GITHUB_OUTPUT
+
+      # ── CloudFront distribution ────────────────────────────────────────────────
+
+      - name: Create CloudFront distribution
+        id: cf
+        run: |
+          DIST_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Aliases.Items[?@=='whoisme.io']].Id" \
+            --output text)
+
+          if [ -n "$DIST_ID" ] && [ "$DIST_ID" != "None" ]; then
+            echo "Distribution already exists: $DIST_ID"
+            echo "id=$DIST_ID" >> $GITHUB_OUTPUT
+          else
+            CERT_ARN="${{ secrets.ACM_CERTIFICATE_ARN }}"
+            OAC_ID="${{ steps.parallel.outputs.oac_id }}"
+            DIST=$(aws cloudfront create-distribution --distribution-config "{
+              \"CallerReference\": \"whoisme-$(date +%s)\",
+              \"Aliases\": { \"Quantity\": 1, \"Items\": [\"whoisme.io\"] },
+              \"DefaultRootObject\": \"index.html\",
+              \"Origins\": {
+                \"Quantity\": 1,
+                \"Items\": [{
+                  \"Id\": \"whoisme-ui-prod\",
+                  \"DomainName\": \"whoisme-ui-prod.s3.us-east-1.amazonaws.com\",
+                  \"S3OriginConfig\": { \"OriginAccessIdentity\": \"\" },
+                  \"OriginAccessControlId\": \"$OAC_ID\"
+                }]
+              },
+              \"DefaultCacheBehavior\": {
+                \"TargetOriginId\": \"whoisme-ui-prod\",
+                \"ViewerProtocolPolicy\": \"redirect-to-https\",
+                \"CachePolicyId\": \"658327ea-f89d-4fab-a63d-7e88639e58f6\",
+                \"Compress\": true,
+                \"AllowedMethods\": { \"Quantity\": 2, \"Items\": [\"GET\", \"HEAD\"], \"CachedMethods\": { \"Quantity\": 2, \"Items\": [\"GET\", \"HEAD\"] } }
+              },
+              \"CustomErrorResponses\": {
+                \"Quantity\": 1,
+                \"Items\": [{
+                  \"ErrorCode\": 404,
+                  \"ResponsePagePath\": \"/index.html\",
+                  \"ResponseCode\": \"200\",
+                  \"ErrorCachingMinTTL\": 0
+                }]
+              },
+              \"Comment\": \"whoisme.io UI\",
+              \"Enabled\": true,
+              \"HttpVersion\": \"http2and3\",
+              \"ViewerCertificate\": {
+                \"ACMCertificateArn\": \"$CERT_ARN\",
+                \"SSLSupportMethod\": \"sni-only\",
+                \"MinimumProtocolVersion\": \"TLSv1.2_2021\"
+              }
+            }")
+
+            DIST_ID=$(echo "$DIST" | python3 -c "import sys,json; print(json.load(sys.stdin)['Distribution']['Id'])")
+            DIST_DOMAIN=$(echo "$DIST" | python3 -c "import sys,json; print(json.load(sys.stdin)['Distribution']['DomainName'])")
+            echo "Created distribution: $DIST_ID ($DIST_DOMAIN)"
+            echo "id=$DIST_ID" >> $GITHUB_OUTPUT
+            echo "domain=$DIST_DOMAIN" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update S3 bucket policy for CloudFront OAC
+        run: |
+          ACCOUNT_ID="${{ steps.account.outputs.id }}"
+          DIST_ID="${{ steps.cf.outputs.id }}"
+          aws s3api put-bucket-policy \
+            --bucket $S3_BUCKET \
+            --policy "$(jq -n \
+              --arg bucket "$S3_BUCKET" \
+              --arg dist_arn "arn:aws:cloudfront::${ACCOUNT_ID}:distribution/${DIST_ID}" \
+              '{
+                Version: "2012-10-17",
+                Statement: [{
+                  Sid: "AllowCloudFront",
+                  Effect: "Allow",
+                  Principal: { Service: "cloudfront.amazonaws.com" },
+                  Action: "s3:GetObject",
+                  Resource: "arn:aws:s3:::\($bucket)/*",
+                  Condition: { StringEquals: { "AWS:SourceArn": $dist_arn } }
+                }]
+              }')"
+          echo "S3 bucket policy updated."
+
+      - name: Add whoisme.io CNAME to Cloudflare
+        run: |
+          CF_DOMAIN="${{ steps.cf.outputs.domain }}"
+          if [ -z "$CF_DOMAIN" ]; then
+            echo "Distribution already existed — domain not available. Get it from AWS console and add CNAME manually."
+            exit 0
+          fi
+          CF_ZONE_ID=${{ secrets.CLOUDFLARE_ZONE_ID }} \
+          CF_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }} \
+          scripts/cf-dns-upsert.sh whoisme.io "$CF_DOMAIN"
+
+      - name: Summary
+        run: |
+          echo "=== Infrastructure Setup Complete ==="
+          echo "CloudFront Distribution ID: ${{ steps.cf.outputs.id }}"
+          echo ""
+          echo "Next step: add CLOUDFRONT_DISTRIBUTION_ID=${{ steps.cf.outputs.id }} as a GitHub secret,"
+          echo "then trigger Deploy UI and Deploy API workflows."

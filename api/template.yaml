@@ -1,18 +1,18 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  t12n.ai API — conversational icebreaker + turns backend.
+  WhoIsMe API — conversational icebreaker + turns backend.
   HTTP API Gateway backed by Lambda + DynamoDB.
 
 Parameters:
   AcmCertificateArn:
     Type: String
     Default: ""
-    Description: ACM certificate ARN for api.t12n.ai (must be in us-east-1)
+    Description: ACM certificate ARN for api.whoisme.io (must be in us-east-1)
 
   ApiDomainName:
     Type: String
-    Default: "api.t12n.ai"
+    Default: "api.whoisme.io"
     Description: Custom domain for the API
 
   NotificationEmail:
@@ -38,7 +38,7 @@ Parameters:
 
   SiteUrl:
     Type: String
-    Default: "https://t12n.ai"
+    Default: "https://whoisme.io"
     Description: Public site URL used to build magic link hrefs
 
 Globals:
@@ -55,7 +55,7 @@ Globals:
         CONVERSATIONS_TABLE: !Ref ConversationsTable
         CONTACTS_TABLE: !Ref ContactsTable
         IDEAS_TABLE: !Ref ConversationIdeasTable
-        POWERTOOLS_SERVICE_NAME: t12n-api
+        POWERTOOLS_SERVICE_NAME: whoisme-api
         LOG_LEVEL: INFO
         NOTIFICATION_EMAIL: !Ref NotificationEmail
         SLACKMAIL_URL: !Ref SlackmailUrl
@@ -120,7 +120,7 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      TableName: t12n-conversations
+      TableName: whoisme-conversations
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: conversation_id
@@ -136,7 +136,7 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      TableName: t12n-contacts
+      TableName: whoisme-contacts
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: contact_id
@@ -152,7 +152,7 @@ Resources:
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      TableName: t12n-conversation-ideas
+      TableName: whoisme-conversation-ideas
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: idea_id
@@ -168,7 +168,7 @@ Resources:
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
     Properties:
-      TableName: t12n-admin-tokens
+      TableName: whoisme-admin-tokens
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: token_id
@@ -184,10 +184,10 @@ Resources:
 
   # ── Lambda Function ──────────────────────────────────────────────────────────
 
-  T12nApiFunction:
+  WhoIsMeApiFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: t12n-api
+      FunctionName: whoisme-api
       CodeUri: src/
       Handler: api/app.handler
       ReservedConcurrentExecutions: 10
@@ -219,11 +219,11 @@ Resources:
         ApiEvent:
           Type: HttpApi
           Properties:
-            ApiId: !Ref T12nHttpApi
+            ApiId: !Ref WhoIsMeHttpApi
 
   # ── HTTP API ─────────────────────────────────────────────────────────────────
 
-  T12nHttpApi:
+  WhoIsMeHttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: $default
@@ -257,9 +257,9 @@ Resources:
     Condition: HasCertificate
     DependsOn: ApiCustomDomain
     Properties:
-      ApiId: !Ref T12nHttpApi
+      ApiId: !Ref WhoIsMeHttpApi
       DomainName: !Ref ApiDomainName
-      Stage: !Ref T12nHttpApiApiGatewayDefaultStage
+      Stage: !Ref WhoIsMeHttpApiApiGatewayDefaultStage
 
   # ── EventBridge Warmup ───────────────────────────────────────────────────────
 
@@ -269,14 +269,14 @@ Resources:
       ScheduleExpression: rate(5 minutes)
       State: ENABLED
       Targets:
-        - Arn: !GetAtt T12nApiFunction.Arn
+        - Arn: !GetAtt WhoIsMeApiFunction.Arn
           Id: Warmup
           Input: '{"source": "warmup"}'
 
   WarmupPermission:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !Ref T12nApiFunction
+      FunctionName: !Ref WhoIsMeApiFunction
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
       SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${WarmupRule}"
@@ -286,7 +286,7 @@ Conditions:
 
 Outputs:
   ApiEndpoint:
-    Value: !Sub "https://${T12nHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+    Value: !Sub "https://${WhoIsMeHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
     Description: HTTP API endpoint URL
 
   ApiCustomDomainTarget:
