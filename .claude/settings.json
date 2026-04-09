@@ -2,7 +2,13 @@
   "hooks": {
     "Stop": [
       {
-        "command": "python3 scripts/extract_session.py"
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 /Users/steven/Developer/whoisme/scripts/extract_session.py"
+          }
+        ]
       }
     ]
   }

@@ -5,7 +5,7 @@ interface Props {
 }
 
 export default function SpeakButton({ state, disabled, onClick }: Props) {
-  const label = state === 'idle' ? 'Play' : state === 'connecting' ? '...' : 'Playing'
+  const label = state === 'idle' ? 'Submit' : state === 'connecting' ? '...' : 'Playing'
 
   return (
     <button

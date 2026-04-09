@@ -5,12 +5,13 @@ interface Props {
   onEnd: () => void
   onError: (msg: string) => void
   disabled?: boolean
+  getBaseText?: () => string
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySpeechRecognition = any
 
-export default function MicButton({ onTranscript, onEnd, onError, disabled }: Props) {
+export default function MicButton({ onTranscript, onEnd, onError, disabled, getBaseText }: Props) {
   const [recording, setRecording] = useState(false)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null)
@@ -32,6 +33,7 @@ export default function MicButton({ onTranscript, onEnd, onError, disabled }: Pr
     rec.lang = 'en-US'
     recognitionRef.current = rec
 
+    const baseText = getBaseText?.() ?? ''
     let finalTranscript = ''
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onresult = (e: any) => {
@@ -39,11 +41,11 @@ export default function MicButton({ onTranscript, onEnd, onError, disabled }: Pr
       const transcript = Array.from(e.results as ArrayLike<SpeechRecognitionResult>)
         .map(r => r[0].transcript).join('')
       finalTranscript = transcript
-      onTranscript(transcript)
+      onTranscript(baseText ? `${baseText} ${transcript}` : transcript)
     }
     rec.onend = () => {
       setRecording(false)
-      if (finalTranscript) onTranscript(finalTranscript)
+      if (finalTranscript) onTranscript(baseText ? `${baseText} ${finalTranscript}` : finalTranscript)
       onEnd()
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

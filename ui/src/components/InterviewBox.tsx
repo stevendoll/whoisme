@@ -70,8 +70,6 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
   const [status, setStatus] = useState('')
   const [statusType, setStatusType] = useState<'' | 'error' | 'playing'>('')
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
-  const [awaitingStart, setAwaitingStart] = useState(false)
-  const firstMessageRef = useRef('')
 
   type BoxState = 'loading' | 'interviewer-speaking' | 'waiting' | 'user-speaking' | 'submitting'
   const [boxState, setBoxState] = useState<BoxState>('loading')
@@ -234,11 +232,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       onSessionCreated?.(id)
       onQuestionsUpdate?.(result.questionsRemaining)
       if (result.heckle) { setHeckle(result.heckle); onHeckle?.(result.heckle) }
-      // Show first message without auto-playing — user must click play
-      firstMessageRef.current = result.message
-      addMessage('interviewer', result.message)
-      setAwaitingStart(true)
-      setBoxState('waiting')
+      void handleInterviewerMessageRef.current(result.message, result.heckle ?? null)
     }).catch(err => {
       if (cancelled) return
       setStatus(`Error: ${err instanceof Error ? err.message : 'Failed to start interview'}`)
@@ -311,19 +305,9 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
 
   const handlePlay = useCallback(() => {
     if (boxState !== 'waiting') return
-    if (awaitingStart) {
-      setAwaitingStart(false)
-      const msg = firstMessageRef.current
-      setBoxState('interviewer-speaking')
-      speakText(msg).then(() => {
-        setBoxState('waiting')
-        requestAnimationFrame(() => inputRef.current?.focus())
-      })
-      return
-    }
     const text = getInputText()
     if (text) void handleSubmit(text)
-  }, [handleSubmit, boxState, awaitingStart, speakText])
+  }, [handleSubmit, boxState])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handlePlay() }
@@ -367,12 +351,11 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
           <div className="voicebox-input-area">
             <div
               ref={inputRef}
-              contentEditable={!isBusy && !awaitingStart}
+              contentEditable={!isBusy}
               suppressContentEditableWarning
               onKeyDown={handleKeyDown}
               className="voicebox-input"
               aria-label="Your answer"
-              data-placeholder={awaitingStart ? "Let's start the interview — click ▶" : undefined}
             />
           </div>
           <div className="voicebox-toolbar">
@@ -400,10 +383,11 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
                 pause
               </button>
               <MicButton
+                getBaseText={() => inputRef.current?.textContent?.trim() ?? ''}
                 onTranscript={t => { if (inputRef.current) inputRef.current.textContent = t }}
-                onEnd={handlePlay}
+                onEnd={() => { /* user submits manually */ }}
                 onError={msg => { setStatus(msg); setStatusType('error') }}
-                disabled={isBusy || awaitingStart}
+                disabled={isBusy}
               />
               <SpeakButton state={ttsState} onClick={handlePlay} disabled={isBusy} />
             </div>
