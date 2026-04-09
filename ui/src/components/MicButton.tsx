@@ -32,14 +32,20 @@ export default function MicButton({ onTranscript, onEnd, onError, disabled }: Pr
     rec.lang = 'en-US'
     recognitionRef.current = rec
 
+    let finalTranscript = ''
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onresult = (e: any) => {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
       const transcript = Array.from(e.results as ArrayLike<SpeechRecognitionResult>)
         .map(r => r[0].transcript).join('')
+      finalTranscript = transcript
       onTranscript(transcript)
     }
-    rec.onend = () => { setRecording(false); onEnd() }
+    rec.onend = () => {
+      setRecording(false)
+      if (finalTranscript) onTranscript(finalTranscript)
+      onEnd()
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onerror = (e: any) => {
       setRecording(false)
