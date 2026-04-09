@@ -4,6 +4,7 @@ import HistoryPage from './pages/HistoryPage'
 import AdminPage from './pages/AdminPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 import InterviewPage from './pages/InterviewPage'
+import LandingPage from './pages/LandingPage'
 import { postAdminVerify, verifyAuth } from './lib/api'
 
 const STORAGE_KEY = 'whoisme_admin'
@@ -61,12 +62,14 @@ export default function App() {
       history.replaceState(null, '', '#/interview')
       window.dispatchEvent(new HashChangeEvent('hashchange'))
     })
+
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const page = basePath === '#/history'              ? 'history'
              : basePath === '#/admin' && adminAuthed ? 'admin'
              : basePath === '#/admin'                ? 'admin-login'
-             : 'interview'
+             : basePath === '#/interview'            ? 'interview'
+             : 'landing'
 
   return (
     <>
@@ -75,7 +78,8 @@ export default function App() {
       {page === 'history'    ? <HistoryPage />
      : page === 'admin'      ? <AdminPage />
      : page === 'admin-login'? <AdminLoginPage />
-     : <InterviewPage />}
+     : page === 'interview'  ? <InterviewPage />
+     : <LandingPage />}
     </>
   )
 }
