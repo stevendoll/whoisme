@@ -68,14 +68,15 @@ jobs:
       - name: SAM build
         run: sam build --parallel
 
-      - name: Handle ROLLBACK_COMPLETE stack
+      - name: Handle unrecoverable stack states
         run: |
           STATUS=$(aws cloudformation describe-stacks \
             --stack-name $STACK_NAME \
             --query 'Stacks[0].StackStatus' --output text 2>/dev/null || echo "DOES_NOT_EXIST")
           echo "Stack status: $STATUS"
-          if [ "$STATUS" = "ROLLBACK_COMPLETE" ]; then
-            echo "Deleting failed stack..."
+          # Delete stacks that can't be updated directly
+          if [ "$STATUS" = "ROLLBACK_COMPLETE" ] || [ "$STATUS" = "REVIEW_IN_PROGRESS" ]; then
+            echo "Deleting stuck stack ($STATUS)..."
             aws cloudformation delete-stack --stack-name $STACK_NAME
             aws cloudformation wait stack-delete-complete --stack-name $STACK_NAME
           fi
