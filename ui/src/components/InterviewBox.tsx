@@ -19,6 +19,15 @@ const INTERVIEWER_VOICES = [
   'cbaf8084-f009-4838-a096-07ee2e6612b1', // Maya
 ]
 
+function stripSsml(text: string): string {
+  return text
+    .replace(/<emotion[^>]*\/?>/gi, '')
+    .replace(/<\/emotion>/gi, '')
+    .replace(/\[clears throat\]/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
 function pickInterviewerVoice(): string {
   const envVoice = import.meta.env.VITE_INTERVIEWER_VOICE_ID as string
   if (envVoice?.trim()) return envVoice.trim()
@@ -99,9 +108,10 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
 
   const speakText = useCallback((text: string): Promise<void> => {
     return new Promise(resolve => {
+      const clean = stripSsml(text)
       if (!CARTESIA_API_KEY || !voiceId.current || ttsDisabled.current) {
         setTtsState('playing'); setStatus('▶ Playing...'); setStatusType('playing')
-        const ms = Math.max(800, text.length * 45)
+        const ms = Math.max(800, clean.length * 45)
         setTimeout(() => { setTtsState('idle'); setStatus(''); setStatusType(''); resolve() }, ms)
         return
       }
@@ -123,7 +133,6 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
         ws.binaryType = 'arraybuffer'
 
         let nextPlayTime = 0, firstChunk = true, settled = false
-        let lastSrc: AudioBufferSourceNode | null = null
 
         const finish = () => {
           if (settled) return; settled = true
@@ -150,7 +159,6 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
           const src = audioCtx.createBufferSource()
           src.buffer = buf; src.connect(analyserRef.current!); src.start(nextPlayTime)
           nextPlayTime += buf.duration
-          lastSrc = src
         }
 
         ws.onopen = () => {
@@ -158,7 +166,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
           ws.send(JSON.stringify({
             context_id: crypto.randomUUID(),
             model_id: 'sonic-3',
-            transcript: text,
+            transcript: clean,
             voice: { mode: 'id', id: voiceId.current },
             output_format: { container: 'raw', encoding: 'pcm_f32le', sample_rate: SAMPLE_RATE },
             continue: false,
@@ -172,10 +180,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
               const msg = JSON.parse(e.data as string) as { type?: string; data?: string }
               if (msg.type === 'error' || msg.type === 'done') {
                 if (firstChunk) fail(`TTS error: ${JSON.stringify(msg)}`)
-                else {
-                  setTimeout(finish, Math.max(50, (nextPlayTime - audioCtx.currentTime) * 1000 + 150))
-                  if (lastSrc) lastSrc.onended = finish
-                }
+                else { setTimeout(finish, Math.max(50, (nextPlayTime - audioCtx.currentTime) * 1000 + 150)) }
                 return
               }
               if (msg.data) {
@@ -190,7 +195,6 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
         ws.onclose = () => {
           if (firstChunk) { fail('No audio received'); return }
           setTimeout(finish, Math.max(50, (nextPlayTime - audioCtx.currentTime) * 1000 + 150))
-          if (lastSrc) lastSrc.onended = finish
         }
       } catch (err) {
         ttsDisabled.current = true
