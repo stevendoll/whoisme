@@ -1,6 +1,6 @@
 # WhoIsMe
 
-Website and API for [whoisme.io](https://whoisme.io) — AI consulting, powered by conversation.
+Website and API for [whoisme.io](https://whoisme.io) — AI consulting site and personal context portfolio builder.
 
 ## Structure
 
@@ -8,7 +8,7 @@ Website and API for [whoisme.io](https://whoisme.io) — AI consulting, powered 
 ├── ui/       React 19 + Vite 6 + TypeScript + Tailwind CSS 4
 ├── api/      AWS Lambda + DynamoDB + Bedrock (Claude 3.5 Haiku)
 ├── assets/   Brand assets (logo, favicon source)
-└── scripts/  Smoke tests, session extractor
+└── scripts/  Smoke tests, session extractor, Cloudflare DNS upsert
 ```
 
 ## Local development
@@ -28,7 +28,7 @@ make local-api-start
 
 ```bash
 cp ui/.env.local.example ui/.env.local
-# Fill in VITE_API_URL, VITE_CARTESIA_API_KEY, VITE_CARTESIA_VOICE_ID
+# Fill in VITE_API_URL, VITE_CARTESIA_API_KEY, VITE_INTERVIEWER_VOICE_ID
 
 cd ui && npm install && npm run dev
 ```
@@ -45,13 +45,16 @@ cd ui && npm install && npm run dev
 Browser
   └── whoisme.io (CloudFront → S3, React SPA)
         └── api.whoisme.io (API Gateway → Lambda)
-              ├── GET  /conversations/icebreakers     → random icebreaker from DynamoDB
-              └── POST /conversations/{id}/turns      → save turn, call Bedrock for consultant replies
+              ├── Conversation engine   GET/POST /conversations/*
+              ├── Interview engine      POST /interview, /interview/{id}/*
+              └── User accounts         POST /users/start, /users/verify, /users/me/*
 ```
+
+Profile data is published to **Cloudflare KV** at `whoisme.io/u/{username}` on publish.
 
 Cartesia TTS runs entirely in the browser via WebSocket — no Lambda proxy.
 
-## Conversation engine
+## Conversation engine (consulting site)
 
 Three-speaker conversation between the visitor and two AI consultants:
 
@@ -59,7 +62,41 @@ Three-speaker conversation between the visitor and two AI consultants:
 - **Alex** (`consultant1`) — direct, outcomes-obsessed transformation advisor
 - **Jamie** (`consultant2`) — wildly funny devil's advocate; absurd analogies, dinner-party wit
 
-Each visitor turn is saved to DynamoDB, then the full conversation history is sent to **Claude 3.5 Haiku** (via Bedrock cross-region inference) with a system prompt enforcing 15–25 word replies per consultant. Both replies are returned to the UI, displayed as chat bubbles, and spoken sequentially via Cartesia TTS.
+Each turn is saved to DynamoDB and the full history is sent to **Claude 3.5 Haiku** (via Bedrock cross-region inference) with a system prompt enforcing 15–25 word replies per consultant. Both replies are returned, displayed as chat bubbles, and spoken via Cartesia TTS.
+
+## Interview engine (context portfolio)
+
+AI-conducted interview that produces a 10-file personal context portfolio at `whoisme.io/u/{username}`.
+
+**Flow:** `#/interview` → 20 questions → draft review → approve/revise each file → publish
+
+**Ten portfolio files:** identity, role-and-responsibilities, current-projects, team-and-relationships, tools-and-systems, communication-style, goals-and-priorities, preferences-and-constraints, domain-knowledge, decision-log
+
+**Interview API:**
+
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /interview` | Create session, return first question |
+| `POST /interview/{id}/respond` | Submit answer, get next question |
+| `POST /interview/{id}/skip-question` | Skip current question |
+| `POST /interview/{id}/skip-section` | Skip an entire section |
+| `POST /interview/{id}/pause` | End interview early, generate drafts |
+| `POST /interview/{id}/more` | Return to interview from review phase |
+| `POST /interview/{id}/review/approve` | Approve a draft file |
+| `POST /interview/{id}/review/feedback` | Revise a draft with feedback |
+| `GET  /interview/{id}` | Get session state |
+
+**User API:**
+
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /users/start` | Send magic-link email |
+| `POST /users/verify` | Verify token, return session token |
+| `GET  /users/me` | Get current user profile |
+| `PATCH /users/me/visibility` | Set per-section public/private |
+| `POST /users/me/publish` | Choose username, write profile to Cloudflare KV |
+| `POST /users/me/token` | Generate long-lived bearer token (for MCP access) |
+| `DELETE /users/me/token` | Revoke bearer token |
 
 ## GitHub secrets required
 
@@ -70,7 +107,11 @@ Each visitor turn is saved to DynamoDB, then the full conversation history is se
 | `CLOUDFRONT_DISTRIBUTION_ID` | CloudFront distribution for whoisme.io |
 | `VITE_API_URL` | `https://api.whoisme.io` |
 | `VITE_CARTESIA_API_KEY` | Cartesia API key (baked into UI build) |
-| `VITE_CARTESIA_VOICE_ID` | Cartesia voice UUID |
+| `VITE_CARTESIA_VOICE_ID` | Cartesia voice UUID for consulting chat |
+| `VITE_INTERVIEWER_VOICE_ID` | Cartesia voice UUID for interview TTS (optional; random default) |
 | `ACM_CERTIFICATE_ARN` | ACM cert for `api.whoisme.io` (us-east-1) |
 | `SLACKMAIL_URL` | Slackmail service base URL |
 | `SLACKMAIL_API_KEY` | Slackmail API key |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token for KV writes on publish |
+| `CLOUDFLARE_ZONE_ID` | Cloudflare zone ID for whoisme.io |
+| `CF_KV_NAMESPACE_ID` | Cloudflare KV namespace for profile storage |
