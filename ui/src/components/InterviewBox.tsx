@@ -123,6 +123,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
         ws.binaryType = 'arraybuffer'
 
         let nextPlayTime = 0, firstChunk = true, settled = false
+        let lastSrc: AudioBufferSourceNode | null = null
 
         const finish = () => {
           if (settled) return; settled = true
@@ -149,6 +150,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
           const src = audioCtx.createBufferSource()
           src.buffer = buf; src.connect(analyserRef.current!); src.start(nextPlayTime)
           nextPlayTime += buf.duration
+          lastSrc = src
         }
 
         ws.onopen = () => {
@@ -170,7 +172,10 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
               const msg = JSON.parse(e.data as string) as { type?: string; data?: string }
               if (msg.type === 'error' || msg.type === 'done') {
                 if (firstChunk) fail(`TTS error: ${JSON.stringify(msg)}`)
-                else { setTimeout(finish, Math.max(50, (nextPlayTime - audioCtx.currentTime) * 1000 + 150)) }
+                else {
+                  setTimeout(finish, Math.max(50, (nextPlayTime - audioCtx.currentTime) * 1000 + 150))
+                  if (lastSrc) lastSrc.onended = finish
+                }
                 return
               }
               if (msg.data) {
@@ -185,6 +190,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
         ws.onclose = () => {
           if (firstChunk) { fail('No audio received'); return }
           setTimeout(finish, Math.max(50, (nextPlayTime - audioCtx.currentTime) * 1000 + 150))
+          if (lastSrc) lastSrc.onended = finish
         }
       } catch (err) {
         ttsDisabled.current = true
