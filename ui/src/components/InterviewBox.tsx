@@ -72,7 +72,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
   const [inputText, setInputText] = useState('')
 
-  type BoxState = 'loading' | 'interviewer-speaking' | 'waiting' | 'user-speaking' | 'submitting'
+  type BoxState = 'loading' | 'failed' | 'interviewer-speaking' | 'waiting' | 'user-speaking' | 'submitting'
   const [boxState, setBoxState] = useState<BoxState>('loading')
   const [ttsState, setTtsState] = useState<'idle' | 'connecting' | 'playing'>('idle')
 
@@ -254,13 +254,31 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       void handleInterviewerMessageRef.current(result.message, result.heckle ?? null)
     }).catch(err => {
       if (cancelled) return
-      const msg = report('interview_start_failed', err)
-      setStatus(`Could not start interview: ${msg}. Refresh to try again.`)
-      setStatusType('error')
-      setBoxState('waiting')
+      report('interview_start_failed', err)
+      setBoxState('failed')
     })
     return () => { cancelled = true }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRetry = () => {
+    setBoxState('loading')
+    setStatus('')
+    let cancelled = false
+    createInterview().then(result => {
+      if (cancelled) return
+      const id = result.sessionId
+      setSessionId(id)
+      onSessionCreated?.(id)
+      onQuestionsUpdate?.(result.questionsRemaining)
+      if (result.heckle) { setHeckle(result.heckle); onHeckle?.(result.heckle) }
+      void handleInterviewerMessageRef.current(result.message, result.heckle ?? null)
+    }).catch(err => {
+      if (cancelled) return
+      report('interview_start_failed', err)
+      setBoxState('failed')
+    })
+    return () => { cancelled = true }
+  }
 
   const showNoSession = () => {
     const msg = 'Action attempted with no session — interview may have failed to start'
@@ -376,7 +394,14 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
         </div>
       )}
 
-      {phase === 'interviewing' && (
+      {phase === 'interviewing' && boxState === 'failed' && (
+        <div className="voicebox-box voicebox-failed">
+          <p className="voicebox-failed-msg">Could not connect to the interview server.</p>
+          <button className="btn-primary" onClick={handleRetry}>Try again</button>
+        </div>
+      )}
+
+      {phase === 'interviewing' && boxState !== 'failed' && (
         <div className="voicebox-box">
           <div className="voicebox-input-area">
             <textarea
