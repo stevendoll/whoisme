@@ -70,12 +70,13 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
   const [status, setStatus] = useState('')
   const [statusType, setStatusType] = useState<'' | 'error' | 'playing'>('')
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
+  const [inputText, setInputText] = useState('')
 
   type BoxState = 'loading' | 'interviewer-speaking' | 'waiting' | 'user-speaking' | 'submitting'
   const [boxState, setBoxState] = useState<BoxState>('loading')
   const [ttsState, setTtsState] = useState<'idle' | 'connecting' | 'playing'>('idle')
 
-  const inputRef         = useRef<HTMLDivElement>(null)
+  const inputRef         = useRef<HTMLTextAreaElement>(null)
   const audioCtxRef      = useRef<AudioContext | null>(null)
   const analyserRef      = useRef<AnalyserNode | null>(null)
   const vizRef           = useRef<VisualizerHandle>(null)
@@ -242,15 +243,13 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
     return () => { cancelled = true }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const getInputText = () => inputRef.current?.textContent?.trim() ?? ''
-
   const handleSubmit = useCallback(async (text: string) => {
     if (!text.trim() || !sessionIdRef.current) return
     const sid = sessionIdRef.current
 
     setBoxState('user-speaking')
     addMessage('user', text)
-    if (inputRef.current) inputRef.current.innerHTML = ''
+    setInputText('')
 
     setBoxState('submitting')
     setStatus('Thinking...')
@@ -305,9 +304,9 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
 
   const handlePlay = useCallback(() => {
     if (boxState !== 'waiting') return
-    const text = getInputText()
+    const text = inputText.trim()
     if (text) void handleSubmit(text)
-  }, [handleSubmit, boxState])
+  }, [handleSubmit, boxState, inputText])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handlePlay() }
@@ -349,13 +348,15 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       {phase === 'interviewing' && (
         <div className="voicebox-box">
           <div className="voicebox-input-area">
-            <div
+            <textarea
               ref={inputRef}
-              contentEditable={!isBusy}
-              suppressContentEditableWarning
+              value={inputText}
+              onChange={e => setInputText(e.target.value)}
               onKeyDown={handleKeyDown}
               className="voicebox-input"
               aria-label="Your answer"
+              rows={3}
+              disabled={isBusy}
             />
           </div>
           <div className="voicebox-toolbar">
@@ -383,8 +384,8 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
                 pause
               </button>
               <MicButton
-                getBaseText={() => inputRef.current?.textContent?.trim() ?? ''}
-                onTranscript={t => { if (inputRef.current) inputRef.current.textContent = t }}
+                getBaseText={() => inputText.trim()}
+                onTranscript={t => setInputText(t)}
                 onEnd={() => { /* user submits manually */ }}
                 onError={msg => { setStatus(msg); setStatusType('error') }}
                 disabled={isBusy}

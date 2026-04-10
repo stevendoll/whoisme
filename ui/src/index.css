@@ -135,6 +135,7 @@ nav ul a:hover { color: var(--accent); }
   background: transparent;
   border: none;
   outline: none;
+  resize: none;
   font-family: 'Newsreader', serif;
   font-size: clamp(1.1rem, 2.6vw, 1.9rem);
   font-style: italic;
@@ -148,15 +149,14 @@ nav ul a:hover { color: var(--accent); }
   cursor: text;
 }
 
-.voicebox-input em {
-  color: var(--white);
+.voicebox-input::placeholder {
+  color: rgba(245,240,232,0.3);
   font-style: italic;
 }
 
-.voicebox-input:empty::before {
-  content: attr(data-placeholder);
-  color: rgba(245,240,232,0.3);
-  font-style: italic;
+.voicebox-input:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 .voicebox-toolbar {
