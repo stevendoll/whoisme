@@ -223,6 +223,24 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
     requestAnimationFrame(() => inputRef.current?.focus())
   }, [addMessage, speakText, onHeckle, onSectionsTouched, onQuestionsUpdate, onPhaseChange])
 
+  const report = (errorType: string, err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err ?? 'Unknown error')
+    console.error(`[InterviewBox] ${errorType}:`, err)
+    postError(errorType, msg).catch(() => { /* best-effort */ })
+    return msg
+  }
+
+  // Catch any unhandled promise rejections and surface them
+  useEffect(() => {
+    const handler = (e: PromiseRejectionEvent) => {
+      const msg = report('unhandled_rejection', e.reason)
+      setStatus(`Unhandled error: ${msg}`)
+      setStatusType('error')
+    }
+    window.addEventListener('unhandledrejection', handler)
+    return () => window.removeEventListener('unhandledrejection', handler)
+  }, [])
+
   // Start interview on mount
   useEffect(() => {
     let cancelled = false
@@ -236,15 +254,24 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       void handleInterviewerMessageRef.current(result.message, result.heckle ?? null)
     }).catch(err => {
       if (cancelled) return
-      setStatus(`Error: ${err instanceof Error ? err.message : 'Failed to start interview'}`)
+      const msg = report('interview_start_failed', err)
+      setStatus(`Could not start interview: ${msg}. Refresh to try again.`)
       setStatusType('error')
       setBoxState('waiting')
     })
     return () => { cancelled = true }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const showNoSession = () => {
+    const msg = 'Action attempted with no session — interview may have failed to start'
+    report('no_session', new Error(msg))
+    setStatus('Interview not started — please refresh the page.')
+    setStatusType('error')
+  }
+
   const handleSubmit = useCallback(async (text: string) => {
-    if (!text.trim() || !sessionIdRef.current) return
+    if (!text.trim()) return
+    if (!sessionIdRef.current) { showNoSession(); return }
     const sid = sessionIdRef.current
 
     setBoxState('user-speaking')
@@ -263,14 +290,16 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       }
       await handleInterviewerMessage(res.message, res.heckle, res)
     } catch (err) {
-      setStatus(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      const msg = report('submit_failed', err)
+      setStatus(`Error: ${msg}`)
       setStatusType('error')
       setBoxState('waiting')
     }
   }, [addMessage, handleInterviewerMessage])
 
   const handleSkipQuestion = useCallback(async () => {
-    if (!sessionIdRef.current || boxState !== 'waiting') return
+    if (boxState !== 'waiting') return
+    if (!sessionIdRef.current) { showNoSession(); return }
     const sid = sessionIdRef.current
     setBoxState('submitting')
     setStatus('Skipping...')
@@ -280,14 +309,15 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       onQuestionsUpdate?.(res.questionsRemaining)
       await handleInterviewerMessage(res.message, res.heckle)
     } catch (err) {
-      setStatus(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      const msg = report('skip_failed', err)
+      setStatus(`Error: ${msg}`)
       setStatusType('error')
       setBoxState('waiting')
     }
   }, [boxState, handleInterviewerMessage, onQuestionsUpdate])
 
   const handlePause = useCallback(async () => {
-    if (!sessionIdRef.current) return
+    if (!sessionIdRef.current) { showNoSession(); return }
     setBoxState('submitting')
     setStatus('Generating drafts...')
     try {
@@ -296,7 +326,8 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       setPhase('reviewing')
       onPhaseChange?.('reviewing', res.draftFiles, res.skippedSections)
     } catch (err) {
-      setStatus(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      const msg = report('pause_failed', err)
+      setStatus(`Error: ${msg}`)
       setStatusType('error')
       setBoxState('waiting')
     }
