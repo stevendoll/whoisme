@@ -1,5 +1,6 @@
 import pathlib
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 
 from aws_lambda_powertools import Logger
@@ -98,14 +99,26 @@ def _generate_draft(section: str, history: list[dict], existing_draft: str | Non
 
 
 def _enter_review(session: dict) -> dict:
-    """Generate drafts for all non-skipped sections and flip phase to reviewing."""
+    """Generate drafts for all non-skipped sections concurrently and flip phase to reviewing."""
     skipped = set(session.get("skipped_sections", []))
     history = session.get("history", [])
 
     draft_files = dict(session.get("draft_files", {}))
-    for section in SECTIONS:
-        if section not in skipped and section not in draft_files:
-            draft_files[section] = _generate_draft(section, history)
+    sections_to_draft = [s for s in SECTIONS if s not in skipped and s not in draft_files]
+
+    def _draft_one(section: str) -> tuple[str, str]:
+        return section, _generate_draft(section, history)
+
+    with ThreadPoolExecutor(max_workers=len(sections_to_draft) or 1) as pool:
+        futures = {pool.submit(_draft_one, s): s for s in sections_to_draft}
+        for future in as_completed(futures):
+            section = futures[future]
+            try:
+                _, draft = future.result()
+                draft_files[section] = draft
+            except Exception as e:
+                logger.error(f"Draft generation failed for section '{section}': {e}")
+                draft_files[section] = ""
 
     session["phase"] = "reviewing"
     session["draft_files"] = draft_files
