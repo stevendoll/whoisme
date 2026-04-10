@@ -62,7 +62,7 @@ Globals:
     Runtime: python3.12
     Architectures: [arm64]
     MemorySize: 512
-    Timeout: 30
+    Timeout: 60
     Tracing: PassThrough
     Environment:
       Variables:
