@@ -23,6 +23,20 @@ function getUserToken(): string | null {
   return localStorage.getItem('whoisme_user_token')
 }
 
+function snakeToCamel(s: string): string {
+  return s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())
+}
+
+function camelizeKeys(val: unknown): unknown {
+  if (Array.isArray(val)) return val.map(camelizeKeys)
+  if (val !== null && typeof val === 'object') {
+    return Object.fromEntries(
+      Object.entries(val).map(([k, v]) => [snakeToCamel(k), camelizeKeys(v)])
+    )
+  }
+  return val
+}
+
 async function apiFetch<T>(path: string, options: RequestInit = {}, auth = false): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(options.headers as Record<string, string>) }
   if (auth) {
@@ -33,12 +47,12 @@ async function apiFetch<T>(path: string, options: RequestInit = {}, auth = false
   if (!res.ok) {
     let message = `HTTP ${res.status}`
     try {
-      const body = (await res.json()) as { error?: string; message?: string }
+      const body = camelizeKeys(await res.json()) as { error?: string; message?: string }
       message = body.error ?? body.message ?? message
     } catch { /* ignore */ }
     throw new Error(message)
   }
-  return res.json() as Promise<T>
+  return camelizeKeys(await res.json()) as T
 }
 
 export function getIcebreaker(): Promise<IcebreakerResponse> {
