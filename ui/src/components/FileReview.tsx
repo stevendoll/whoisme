@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { approveFile, submitFeedback } from '../lib/api'
+import { approveFile } from '../lib/api'
 
 const SECTION_LABELS: Record<string, string> = {
   'identity':                    'Identity',
@@ -23,32 +23,37 @@ interface FileReviewProps {
 }
 
 export default function FileReview({ sessionId, draftFiles, approvedFiles, onApprove, onDraftUpdate }: FileReviewProps) {
-  const [feedbackFile, setFeedbackFile] = useState<string | null>(null)
-  const [feedbackText, setFeedbackText] = useState('')
+  const [editedTexts, setEditedTexts] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState<string | null>(null)
   const approvedSet = new Set(approvedFiles)
+
+  const getText = (file: string) => editedTexts[file] ?? draftFiles[file] ?? ''
+
+  const handleEdit = (file: string, value: string) => {
+    setEditedTexts(prev => ({ ...prev, [file]: value }))
+    onDraftUpdate(file, value)
+  }
 
   const handleApprove = async (file: string) => {
     setLoading(file)
     try {
-      await approveFile(sessionId, file)
+      const text = getText(file)
+      await approveFile(sessionId, file, text)
       onApprove(file)
     } finally {
       setLoading(null)
     }
   }
 
-  const handleFeedbackSubmit = async (file: string) => {
-    if (!feedbackText.trim()) return
-    setLoading(file)
-    try {
-      const result = await submitFeedback(sessionId, file, feedbackText)
-      onDraftUpdate(file, result.draft)
-      setFeedbackFile(null)
-      setFeedbackText('')
-    } finally {
-      setLoading(null)
-    }
+  const handleDownload = (file: string) => {
+    const text = getText(file)
+    const blob = new Blob([text], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${file}.md`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const sections = Object.keys(draftFiles)
@@ -62,24 +67,23 @@ export default function FileReview({ sessionId, draftFiles, approvedFiles, onApp
       {sections.map(file => {
         const isApproved = approvedSet.has(file)
         const isLoading = loading === file
-        const showFeedback = feedbackFile === file
 
         return (
           <div key={file} className={`file-review-item ${isApproved ? 'is-approved' : ''}`}>
             <div className="file-review-header">
               <h3 className="file-review-title">
                 {SECTION_LABELS[file] ?? file}
-                {isApproved && <span className="file-review-approved-badge">✓ approved</span>}
+                {isApproved && <span className="file-review-approved-badge">approved</span>}
               </h3>
-              {!isApproved && (
-                <div className="file-review-actions">
-                  <button
-                    onClick={() => { setFeedbackFile(showFeedback ? null : file); setFeedbackText('') }}
-                    disabled={isLoading}
-                    className="btn-ghost"
-                  >
-                    {showFeedback ? 'Cancel' : 'Give feedback'}
-                  </button>
+              <div className="file-review-actions">
+                <button
+                  onClick={() => handleDownload(file)}
+                  className="btn-ghost"
+                  title="Download as .md"
+                >
+                  Download
+                </button>
+                {!isApproved && (
                   <button
                     onClick={() => handleApprove(file)}
                     disabled={isLoading}
@@ -87,31 +91,17 @@ export default function FileReview({ sessionId, draftFiles, approvedFiles, onApp
                   >
                     {isLoading ? 'Saving...' : 'Approve'}
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
-            <pre className="file-review-draft">{draftFiles[file]}</pre>
-
-            {showFeedback && (
-              <div className="file-review-feedback">
-                <textarea
-                  value={feedbackText}
-                  onChange={e => setFeedbackText(e.target.value)}
-                  placeholder="What doesn't sound right? What's missing?"
-                  rows={3}
-                  className="file-review-feedback-input"
-                  autoFocus
-                />
-                <button
-                  onClick={() => handleFeedbackSubmit(file)}
-                  disabled={isLoading || !feedbackText.trim()}
-                  className="btn-primary"
-                >
-                  {isLoading ? 'Revising...' : 'Revise draft'}
-                </button>
-              </div>
-            )}
+            <textarea
+              className="file-review-edit"
+              value={getText(file)}
+              onChange={e => handleEdit(file, e.target.value)}
+              readOnly={isApproved}
+              rows={12}
+            />
           </div>
         )
       })}

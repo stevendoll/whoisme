@@ -1172,41 +1172,24 @@ footer a {
   align-items: center;
 }
 
-.file-review-draft {
+.file-review-edit {
   font-family: 'Newsreader', serif;
   font-size: 0.88rem;
   line-height: 1.7;
-  color: rgba(245,240,232,0.65);
+  color: rgba(245,240,232,0.85);
+  background: rgba(245,240,232,0.03);
+  border: 1px solid transparent;
+  border-radius: 0 0 6px 6px;
   padding: 20px;
   margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.file-review-feedback {
-  padding: 12px 20px 16px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.file-review-feedback-input {
-  background: rgba(245,240,232,0.04);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--white);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.85rem;
-  line-height: 1.55;
-  padding: 10px 14px;
-  resize: vertical;
   width: 100%;
+  resize: vertical;
   outline: none;
   transition: border-color 0.2s;
+  box-sizing: border-box;
 }
-.file-review-feedback-input:focus { border-color: rgba(77,182,172,0.4); }
-.file-review-feedback-input::placeholder { color: rgba(245,240,232,0.25); }
+.file-review-edit:not([readonly]):focus { border-color: rgba(77,182,172,0.35); }
+.file-review-edit[readonly] { color: rgba(245,240,232,0.45); cursor: default; }
 
 /* ─── Interview page layout ─────────────────────────────────── */
 

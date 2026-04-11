@@ -27,8 +27,6 @@ export default function InterviewPage() {
 
   const isLoggedIn = !!localStorage.getItem('whoisme_user_token')
 
-  const totalDraftable = 10 - skippedSections.length
-  const allApproved = totalDraftable > 0 && approvedFiles.length >= totalDraftable
 
   const handlePhaseChange = useCallback((
     newPhase: InterviewPhase,
@@ -141,7 +139,7 @@ export default function InterviewPage() {
                 onDraftUpdate={(file, draft) => setDraftFiles(prev => ({ ...prev, [file]: draft }))}
               />
 
-              {allApproved && !publishedUrl && (
+              {!publishedUrl && (
                 <div className="interview-publish-box">
                   <h3 className="interview-publish-heading">Publish your profile</h3>
 
