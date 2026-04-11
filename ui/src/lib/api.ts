@@ -152,8 +152,8 @@ export function moreQuestions(sessionId: string, count = 10): Promise<MoreQuesti
   return apiFetch(`/interview/${sessionId}/more`, { method: 'POST', body: JSON.stringify({ count }) })
 }
 
-export function approveFile(sessionId: string, file: string): Promise<ReviewApproveResponse> {
-  return apiFetch(`/interview/${sessionId}/review/approve`, { method: 'POST', body: JSON.stringify({ file }) })
+export function approveFile(sessionId: string, file: string, text?: string): Promise<ReviewApproveResponse> {
+  return apiFetch(`/interview/${sessionId}/review/approve`, { method: 'POST', body: JSON.stringify({ file, text }) })
 }
 
 export function submitFeedback(sessionId: string, file: string, text: string): Promise<ReviewFeedbackResponse> {
