@@ -1,20 +1,46 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import InterviewBox, { type InterviewBoxHandle } from '../components/InterviewBox'
 import SectionFill from '../components/SectionFill'
 import FileReview from '../components/FileReview'
 import { moreQuestions, startAuth, publishProfile } from '../lib/api'
 import type { InterviewPhase } from '../lib/types'
 
+const SESSION_STORAGE_KEY = 'whoisme_session'
+
+function saveSession(data: {
+  sessionId: string
+  phase: InterviewPhase
+  draftFiles: Record<string, string>
+  approvedFiles: string[]
+}) {
+  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data))
+}
+
+function loadSession(): {
+  sessionId: string
+  phase: InterviewPhase
+  draftFiles: Record<string, string>
+  approvedFiles: string[]
+} | null {
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
 export default function InterviewPage() {
   const boxRef = useRef<InterviewBoxHandle>(null)
 
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const [phase, setPhase] = useState<InterviewPhase>('interviewing')
+  const saved = loadSession()
+  const [sessionId, setSessionId] = useState<string | null>(saved?.sessionId ?? null)
+  const [phase, setPhase] = useState<InterviewPhase>(saved?.phase ?? 'interviewing')
   const [questionsRemaining, setQuestionsRemaining] = useState<number | null>(null)
   const [sectionDensity, setSectionDensity] = useState<Record<string, number>>({})
   const [skippedSections, setSkippedSections] = useState<string[]>([])
-  const [draftFiles, setDraftFiles] = useState<Record<string, string>>({})
-  const [approvedFiles, setApprovedFiles] = useState<string[]>([])
+  const [draftFiles, setDraftFiles] = useState<Record<string, string>>(saved?.draftFiles ?? {})
+  const [approvedFiles, setApprovedFiles] = useState<string[]>(saved?.approvedFiles ?? [])
 
   // Auth / publish
   const [email, setEmail] = useState('')
@@ -25,8 +51,22 @@ export default function InterviewPage() {
   const [publishError, setPublishError] = useState('')
   const [publishedUrl, setPublishedUrl] = useState('')
 
-  const isLoggedIn = !!localStorage.getItem('whoisme_user_token')
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('whoisme_user_token'))
 
+  // Re-check login state when storage changes (e.g. after magic link verify in same tab)
+  useEffect(() => {
+    const handler = () => setIsLoggedIn(!!localStorage.getItem('whoisme_user_token'))
+    window.addEventListener('storage', handler)
+    // Also poll once — storage events don't fire in the same tab
+    const id = setInterval(() => setIsLoggedIn(!!localStorage.getItem('whoisme_user_token')), 500)
+    return () => { window.removeEventListener('storage', handler); clearInterval(id) }
+  }, [])
+
+  // Persist session state whenever key values change
+  useEffect(() => {
+    if (!sessionId) return
+    saveSession({ sessionId, phase, draftFiles, approvedFiles })
+  }, [sessionId, phase, draftFiles, approvedFiles])
 
   const handlePhaseChange = useCallback((
     newPhase: InterviewPhase,
@@ -73,6 +113,7 @@ export default function InterviewPage() {
     try {
       const res = await publishProfile(name)
       setPublishedUrl(res.url)
+      localStorage.removeItem(SESSION_STORAGE_KEY)
     } catch (err) {
       setPublishError(err instanceof Error ? err.message : 'Failed to publish')
     } finally {
