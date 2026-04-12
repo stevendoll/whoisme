@@ -9,7 +9,7 @@ export default function Home() {
       <Nav />
 
       <section id="hero">
-        <img src="/assets/t12n-ai-rabbit.png" alt="WhoIsMe logo" />
+        <img src="/assets/whoisme-logo-transparent.png" alt="WhoIsMe" />
         <div className="label">AI Transformation Consulting</div>
         <VoiceBox />
       </section>

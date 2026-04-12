@@ -434,10 +434,10 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
                 className="voicebox-reset"
                 onClick={handlePause}
                 disabled={isBusy}
-                title="Pause and review drafts"
-                aria-label="Pause interview"
+                title="Review progress"
+                aria-label="Review progress"
               >
-                pause
+                review progress
               </button>
               <MicButton
                 getBaseText={() => inputText.trim()}
