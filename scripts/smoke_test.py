@@ -5,51 +5,67 @@ Usage: SMOKE_BASE_URL=https://api.whoisme.io pipenv run python scripts/smoke_tes
 
 import os
 import sys
-import uuid
 import requests
 
 BASE_URL = os.environ.get("SMOKE_BASE_URL", "https://api.whoisme.io").rstrip("/")
 
 
-def test_post_visitor_turn(conversation_id: str, text: str, order: int = 0):
-    url = f"{BASE_URL}/conversations/{conversation_id}/turns"
-    print(f"POST {url} (visitor turn, order={order}) ...", end=" ")
-    payload = {"order": order, "text": text, "speaker": "visitor"}
-    r = requests.post(url, json=payload, timeout=30)
+def test_create_interview() -> str:
+    url = f"{BASE_URL}/interview"
+    print(f"POST {url} ...", end=" ")
+    r = requests.post(url, timeout=30)
     assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
     body = r.json()
-    assert "turn" in body, f"Missing 'turn' in response: {body}"
-    assert body["turn"]["text"] == text, f"Turn text mismatch: {body}"
-    replies = body.get("consultantReplies", [])
-    assert 1 <= len(replies) <= 3, f"Expected 1–3 consultantReplies, got {len(replies)}: {body}"
-    valid_speakers = {"consultant1", "consultant2"}
-    for reply in replies:
-        assert reply["speaker"] in valid_speakers, f"Unexpected speaker: {reply['speaker']}"
-        assert reply["text"], f"Empty reply text for {reply['speaker']}"
+    assert "session_id" in body or "sessionId" in body, f"Missing session_id: {body}"
+    assert "message" in body, f"Missing message: {body}"
+    session_id = body.get("session_id") or body.get("sessionId")
     elapsed = r.elapsed.total_seconds()
-    print(f"OK ({elapsed:.2f}s) — {len(replies)} repl{'y' if len(replies) == 1 else 'ies'}")
-    for reply in replies:
-        label = "Alex" if reply["speaker"] == "consultant1" else "Jamie"
-        print(f"  {label}: \"{reply['text'][:80]}\"")
-    return replies
+    print(f"OK ({elapsed:.2f}s) — session {session_id[:8]}...")
+    return session_id
+
+
+def test_respond(session_id: str):
+    url = f"{BASE_URL}/interview/{session_id}/respond"
+    print(f"POST {url} ...", end=" ")
+    r = requests.post(url, json={"text": "I work as a software engineer building developer tools."}, timeout=30)
+    assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
+    body = r.json()
+    assert "message" in body, f"Missing message: {body}"
+    elapsed = r.elapsed.total_seconds()
+    print(f"OK ({elapsed:.2f}s)")
+
+
+def test_get_session(session_id: str):
+    url = f"{BASE_URL}/interview/{session_id}"
+    print(f"GET {url} ...", end=" ")
+    r = requests.get(url, timeout=10)
+    assert r.status_code == 200, f"Expected 200, got {r.status_code}: {r.text}"
+    body = r.json()
+    assert "phase" in body or "session_id" in body or "sessionId" in body, f"Unexpected body: {body}"
+    elapsed = r.elapsed.total_seconds()
+    print(f"OK ({elapsed:.2f}s)")
 
 
 def main():
     print(f"\nSmoke tests → {BASE_URL}\n{'─' * 60}")
     errors = []
 
-    icebreaker_text = "The gap between knowing and doing is costing us."
-    conv_id = str(uuid.uuid4())
-
+    session_id = None
     try:
-        test_post_visitor_turn(conv_id, icebreaker_text, order=0)
+        session_id = test_create_interview()
     except Exception as e:
-        errors.append(f"POST /conversations/{{id}}/turns (visitor, order=0): {e}")
+        errors.append(f"POST /interview: {e}")
 
-    try:
-        test_post_visitor_turn(conv_id, "We keep running pilots but nothing scales.", order=3)
-    except Exception as e:
-        errors.append(f"POST /conversations/{{id}}/turns (visitor, order=3): {e}")
+    if session_id:
+        try:
+            test_respond(session_id)
+        except Exception as e:
+            errors.append(f"POST /interview/{{id}}/respond: {e}")
+
+        try:
+            test_get_session(session_id)
+        except Exception as e:
+            errors.append(f"GET /interview/{{id}}: {e}")
 
     print(f"\n{'─' * 60}")
     if errors:

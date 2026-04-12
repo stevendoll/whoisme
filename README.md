@@ -1,6 +1,6 @@
 # WhoIsMe
 
-Website and API for [whoisme.io](https://whoisme.io) — AI consulting site and personal context portfolio builder.
+Website and API for [whoisme.io](https://whoisme.io) — AI-conducted interview that builds a personal context portfolio.
 
 ## Structure
 
@@ -45,7 +45,6 @@ cd ui && npm install && npm run dev
 Browser
   └── whoisme.io (CloudFront → S3, React SPA)
         └── api.whoisme.io (API Gateway → Lambda)
-              ├── Conversation engine   GET/POST /conversations/*
               ├── Interview engine      POST /interview, /interview/{id}/*
               └── User accounts         POST /users/start, /users/verify, /users/me/*
 ```
@@ -54,21 +53,11 @@ Profile data is published to **Cloudflare KV** at `whoisme.io/u/{username}` on p
 
 Cartesia TTS runs entirely in the browser via WebSocket — no Lambda proxy.
 
-## Conversation engine (consulting site)
-
-Three-speaker conversation between the visitor and two AI consultants:
-
-- **Visitor** — types or speaks their message; played back via Cartesia TTS before submission
-- **Alex** (`consultant1`) — direct, outcomes-obsessed transformation advisor
-- **Jamie** (`consultant2`) — wildly funny devil's advocate; absurd analogies, dinner-party wit
-
-Each turn is saved to DynamoDB and the full history is sent to **Claude 3.5 Haiku** (via Bedrock cross-region inference) with a system prompt enforcing 15–25 word replies per consultant. Both replies are returned, displayed as chat bubbles, and spoken via Cartesia TTS.
-
-## Interview engine (context portfolio)
+## Interview engine
 
 AI-conducted interview that produces a 10-file personal context portfolio at `whoisme.io/u/{username}`.
 
-**Flow:** `#/interview` → 20 questions → draft review → approve/revise each file → publish
+**Flow:** `#/interview` → 20 questions → review progress → approve/revise each file → publish
 
 **Ten portfolio files:** identity, role-and-responsibilities, current-projects, team-and-relationships, tools-and-systems, communication-style, goals-and-priorities, preferences-and-constraints, domain-knowledge, decision-log
 
@@ -107,7 +96,6 @@ AI-conducted interview that produces a 10-file personal context portfolio at `wh
 | `CLOUDFRONT_DISTRIBUTION_ID` | CloudFront distribution for whoisme.io |
 | `VITE_API_URL` | `https://api.whoisme.io` |
 | `VITE_CARTESIA_API_KEY` | Cartesia API key (baked into UI build) |
-| `VITE_CARTESIA_VOICE_ID` | Cartesia voice UUID for consulting chat |
 | `VITE_INTERVIEWER_VOICE_ID` | Cartesia voice UUID for interview TTS (optional; random default) |
 | `ACM_CERTIFICATE_ARN` | ACM cert for `api.whoisme.io` (us-east-1) |
 | `SLACKMAIL_URL` | Slackmail service base URL |
