@@ -1,6 +1,5 @@
 import { useState, useEffect, Component, type ReactNode } from 'react'
 import Cursor from './components/Cursor'
-import HistoryPage from './pages/HistoryPage'
 import AdminPage from './pages/AdminPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 import InterviewPage from './pages/InterviewPage'
@@ -86,8 +85,7 @@ export default function App() {
 
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const page = basePath === '#/history'              ? 'history'
-             : basePath === '#/admin' && adminAuthed ? 'admin'
+  const page = basePath === '#/admin' && adminAuthed ? 'admin'
              : basePath === '#/admin'                ? 'admin-login'
              : basePath === '#/interview'            ? 'interview'
              : 'landing'
@@ -96,10 +94,9 @@ export default function App() {
     <ErrorBoundary>
       <Cursor />
       <div className="fixed inset-0 pointer-events-none z-0 bg-[image:linear-gradient(var(--border)_1px,transparent_1px),linear-gradient(90deg,var(--border)_1px,transparent_1px)] bg-[size:80px_80px] [mask-image:radial-gradient(ellipse_at_center,transparent_30%,black_100%)]" />
-      {page === 'history'    ? <HistoryPage />
-     : page === 'admin'      ? <AdminPage />
-     : page === 'admin-login'? <AdminLoginPage />
-     : page === 'interview'  ? <InterviewPage />
+      {page === 'admin'       ? <AdminPage />
+     : page === 'admin-login' ? <AdminLoginPage />
+     : page === 'interview'   ? <InterviewPage />
      : <LandingPage />}
     </ErrorBoundary>
   )

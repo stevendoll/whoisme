@@ -1,17 +1,10 @@
-import type { Speaker } from '../lib/types'
+export type ChatRole = 'interviewer' | 'user' | 'heckle'
 
 interface Props {
-  speaker: Speaker
+  role: ChatRole
   text: string
 }
 
-const SPEAKER_META: Record<Speaker, { className: string }> = {
-  visitor:     { className: 'chat-bubble--visitor' },
-  consultant1: { className: 'chat-bubble--alex' },
-  consultant2: { className: 'chat-bubble--jamie' },
-}
-
-// Strip Cartesia emotion/expression tags — they're for TTS only, not display
 function stripTags(text: string): string {
   return text
     .replace(/<emotion[^>]*\/>/g, '')
@@ -20,10 +13,10 @@ function stripTags(text: string): string {
     .trim()
 }
 
-export default function ChatBubble({ speaker, text }: Props) {
-  const { className } = SPEAKER_META[speaker]
+export default function ChatBubble({ role, text }: Props) {
   return (
-    <div className={`chat-bubble ${className}`}>
+    <div className={`chat-bubble chat-bubble--${role}`}>
+      {role === 'heckle' && <span className="chat-bubble-heckle-label">peanut gallery</span>}
       <p>{stripTags(text)}</p>
     </div>
   )

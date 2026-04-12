@@ -1,9 +1,5 @@
 import type {
-  TurnRequest,
-  TurnResponse,
-  Conversation,
   ContactRequest,
-  Turn,
   CreateInterviewResponse,
   RespondResponse,
   SkipQuestionResponse,
@@ -51,21 +47,6 @@ async function apiFetch<T>(path: string, options: RequestInit = {}, auth = false
     throw new Error(message)
   }
   return camelizeKeys(await res.json()) as T
-}
-
-export function postTurn(conversationId: string, body: TurnRequest): Promise<TurnResponse> {
-  return apiFetch(`/conversations/${conversationId}/turns`, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
-}
-
-export function getConversations(): Promise<{ conversations: Conversation[] }> {
-  return apiFetch('/conversations')
-}
-
-export function getConversationTurns(conversationId: string): Promise<{ turns: Turn[] }> {
-  return apiFetch(`/conversations/${conversationId}/turns`)
 }
 
 export function postContact(body: ContactRequest): Promise<{ contactId: string }> {

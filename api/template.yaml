@@ -66,10 +66,7 @@ Globals:
     Tracing: PassThrough
     Environment:
       Variables:
-        TURNS_TABLE: !Ref ConversationTurnsTable
-        CONVERSATIONS_TABLE: !Ref ConversationsTable
         CONTACTS_TABLE: !Ref ContactsTable
-        IDEAS_TABLE: !Ref ConversationIdeasTable
         POWERTOOLS_SERVICE_NAME: whoisme-api
         LOG_LEVEL: INFO
         NOTIFICATION_EMAIL: !Ref NotificationEmail
@@ -88,45 +85,6 @@ Globals:
 Resources:
   # ── DynamoDB Tables ─────────────────────────────────────────────────────────
 
-  ConversationTurnsTable:
-    Type: AWS::DynamoDB::Table
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      TableName: whoisme-turns
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: conversation_id
-          AttributeType: S
-        - AttributeName: order
-          AttributeType: N
-      KeySchema:
-        - AttributeName: conversation_id
-          KeyType: HASH
-        - AttributeName: order
-          KeyType: RANGE
-      TimeToLiveSpecification:
-        AttributeName: ttl
-        Enabled: true
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: false
-
-  ConversationsTable:
-    Type: AWS::DynamoDB::Table
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      TableName: whoisme-conversations
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: conversation_id
-          AttributeType: S
-      KeySchema:
-        - AttributeName: conversation_id
-          KeyType: HASH
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: false
-
   ContactsTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
@@ -139,22 +97,6 @@ Resources:
           AttributeType: S
       KeySchema:
         - AttributeName: contact_id
-          KeyType: HASH
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: false
-
-  ConversationIdeasTable:
-    Type: AWS::DynamoDB::Table
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      TableName: whoisme-conversation-ideas
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: idea_id
-          AttributeType: S
-      KeySchema:
-        - AttributeName: idea_id
           KeyType: HASH
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: false
@@ -260,13 +202,7 @@ Resources:
       ReservedConcurrentExecutions: 10
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: !Ref ConversationTurnsTable
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ConversationsTable
-        - DynamoDBCrudPolicy:
             TableName: !Ref ContactsTable
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ConversationIdeasTable
         - DynamoDBCrudPolicy:
             TableName: !Ref AdminTokensTable
         - DynamoDBCrudPolicy:
