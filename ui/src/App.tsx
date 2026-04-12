@@ -65,7 +65,7 @@ export default function App() {
     }).catch(() => { /* invalid token — stay on login page */ })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // On mount: if /#/verify?token=... is present, verify user magic link
+  // If /#/verify?token=... is present, verify user magic link
   useEffect(() => {
     if (basePath !== '#/verify') return
 
@@ -83,7 +83,7 @@ export default function App() {
       window.dispatchEvent(new HashChangeEvent('hashchange'))
     })
 
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hash]) // re-run whenever hash changes so same-tab magic link clicks work
 
   const page = basePath === '#/admin' && adminAuthed ? 'admin'
              : basePath === '#/admin'                ? 'admin-login'
