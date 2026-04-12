@@ -1,8 +1,3 @@
-export interface IcebreakerResponse {
-  id: string
-  text: string
-}
-
 export type Speaker = 'visitor' | 'consultant1' | 'consultant2'
 
 export interface TurnRequest {
@@ -54,12 +49,6 @@ export interface ChatMessage {
   id: string
   speaker: Speaker
   text: string
-}
-
-export interface AdminIcebreaker {
-  id: string
-  text: string
-  isActive?: string
 }
 
 // ── Interview ─────────────────────────────────────────────────────────────────

@@ -38,18 +38,6 @@ class WhoIsMeModel(BaseModel):
     )
 
 
-class Icebreaker(WhoIsMeModel):
-    icebreaker_id: str
-    text: str
-    is_active: str = "true"
-    created_at: str
-
-
-class IcebreakerResponse(WhoIsMeModel):
-    id: str
-    text: str
-
-
 Speaker = Literal["visitor", "consultant1", "consultant2"]
 
 

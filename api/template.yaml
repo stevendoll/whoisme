@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  WhoIsMe API — conversational icebreaker + turns backend.
+  WhoIsMe API — interview, users, conversations, contacts backend.
   HTTP API Gateway backed by Lambda + DynamoDB.
 
 Parameters:
@@ -66,7 +66,6 @@ Globals:
     Tracing: PassThrough
     Environment:
       Variables:
-        ICEBREAKERS_TABLE: !Ref IcebreakersTable
         TURNS_TABLE: !Ref ConversationTurnsTable
         CONVERSATIONS_TABLE: !Ref ConversationsTable
         CONTACTS_TABLE: !Ref ContactsTable
@@ -88,31 +87,6 @@ Globals:
 
 Resources:
   # ── DynamoDB Tables ─────────────────────────────────────────────────────────
-
-  IcebreakersTable:
-    Type: AWS::DynamoDB::Table
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      TableName: whoisme-icebreakers
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: icebreaker_id
-          AttributeType: S
-        - AttributeName: is_active
-          AttributeType: S
-      KeySchema:
-        - AttributeName: icebreaker_id
-          KeyType: HASH
-      GlobalSecondaryIndexes:
-        - IndexName: is_active-index
-          KeySchema:
-            - AttributeName: is_active
-              KeyType: HASH
-          Projection:
-            ProjectionType: ALL
-      PointInTimeRecoverySpecification:
-        PointInTimeRecoveryEnabled: false
 
   ConversationTurnsTable:
     Type: AWS::DynamoDB::Table
@@ -285,8 +259,6 @@ Resources:
       Handler: api/app.handler
       ReservedConcurrentExecutions: 10
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref IcebreakersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref ConversationTurnsTable
         - DynamoDBCrudPolicy:

@@ -14,7 +14,6 @@ from unittest.mock import MagicMock, patch
 # Ensure src/ is on the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-os.environ.setdefault("ICEBREAKERS_TABLE",    "icebreakers")
 os.environ.setdefault("TURNS_TABLE",          "conversation_turns")
 os.environ.setdefault("CONVERSATIONS_TABLE",  "conversations")
 os.environ.setdefault("CONTACTS_TABLE",       "contacts")
@@ -43,87 +42,6 @@ def _apigw_event(method: str, path: str, body: dict | None = None, path_params: 
         "pathParameters": path_params or {},
         "isBase64Encoded": False,
     }
-
-
-class TestIcebreakers(unittest.TestCase):
-
-    def _seed_icebreaker(self, table, text="The gap between knowing and doing is costing us."):
-        item = {
-            "icebreaker_id": str(uuid.uuid4()),
-            "text": text,
-            "is_active": "true",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
-        table.put_item(Item=item)
-        return item
-
-    def test_get_icebreaker_returns_random_active(self):
-        import boto3
-        from moto import mock_aws
-
-        with mock_aws():
-            ddb = boto3.resource("dynamodb", region_name="us-east-1")
-            table = ddb.create_table(
-                TableName="icebreakers",
-                AttributeDefinitions=[
-                    {"AttributeName": "icebreaker_id", "AttributeType": "S"},
-                    {"AttributeName": "is_active", "AttributeType": "S"},
-                ],
-                KeySchema=[{"AttributeName": "icebreaker_id", "KeyType": "HASH"}],
-                GlobalSecondaryIndexes=[{
-                    "IndexName": "is_active-index",
-                    "KeySchema": [{"AttributeName": "is_active", "KeyType": "HASH"}],
-                    "Projection": {"ProjectionType": "ALL"},
-                }],
-                BillingMode="PAY_PER_REQUEST",
-            )
-
-            seeded = self._seed_icebreaker(table)
-
-            with patch("db.icebreakers_table", table):
-                import importlib
-                import api.routers.icebreakers as mod
-                importlib.reload(mod)
-
-                from api.app import handler
-                event = _apigw_event("GET", "/conversations/icebreakers")
-                result = handler(event, MagicMock())
-
-                self.assertEqual(result["statusCode"], 200)
-                body = json.loads(result["body"])
-                self.assertIn("text", body)
-                self.assertEqual(body["text"], seeded["text"])
-
-    def test_get_icebreaker_404_when_empty(self):
-        import boto3
-        from moto import mock_aws
-
-        with mock_aws():
-            ddb = boto3.resource("dynamodb", region_name="us-east-1")
-            table = ddb.create_table(
-                TableName="icebreakers",
-                AttributeDefinitions=[
-                    {"AttributeName": "icebreaker_id", "AttributeType": "S"},
-                    {"AttributeName": "is_active", "AttributeType": "S"},
-                ],
-                KeySchema=[{"AttributeName": "icebreaker_id", "KeyType": "HASH"}],
-                GlobalSecondaryIndexes=[{
-                    "IndexName": "is_active-index",
-                    "KeySchema": [{"AttributeName": "is_active", "KeyType": "HASH"}],
-                    "Projection": {"ProjectionType": "ALL"},
-                }],
-                BillingMode="PAY_PER_REQUEST",
-            )
-
-            with patch("db.icebreakers_table", table):
-                import importlib
-                import api.routers.icebreakers as mod
-                importlib.reload(mod)
-
-                from api.app import handler
-                event = _apigw_event("GET", "/conversations/icebreakers")
-                result = handler(event, MagicMock())
-                self.assertEqual(result["statusCode"], 404)
 
 
 class TestTurns(unittest.TestCase):
