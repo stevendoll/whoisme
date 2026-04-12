@@ -83,7 +83,7 @@ export default function InterviewPage() {
   return (
     <div className="interview-page">
       <header className="interview-header">
-        <a href="#/" className="interview-logo"><img src="/assets/whoisme-horizontal.png" alt="WhoIsMe" /></a>
+        <a href="#/" className="interview-logo"><img src="/assets/whoisme-banner.png" alt="WhoIsMe" /></a>
         <div className="interview-progress">
           {phase === 'interviewing' && questionsRemaining !== null && (
             <span className="interview-questions-left">{questionsRemaining} questions left</span>
