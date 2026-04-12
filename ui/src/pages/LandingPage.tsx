@@ -2,7 +2,7 @@ export default function LandingPage() {
   return (
     <div className="landing-page">
       <div className="landing-content">
-        <img src="/assets/whoisme-horizontal.png" alt="WhoIsMe" className="landing-logo" />
+        <img src="/assets/whoisme-logo-transparent.png" alt="WhoIsMe" className="landing-logo" />
         <p className="landing-subheading">Your professional story, told in your voice.</p>
         <p className="landing-body">
           A short conversational interview that helps you articulate who you are, what you do,
