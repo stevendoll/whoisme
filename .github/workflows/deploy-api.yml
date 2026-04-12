@@ -111,6 +111,17 @@ jobs:
           CF_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }} \
           ../scripts/cf-dns-upsert.sh api.whoisme.io "$APIGW_DOMAIN"
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pipenv
+        run: pip install pipenv
+
+      - name: Install dependencies
+        run: python -m pipenv install --dev
+
       - name: Smoke tests (with retry)
         run: |
           for i in 1 2 3 4 5; do
