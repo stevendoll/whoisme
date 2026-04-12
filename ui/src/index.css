@@ -496,35 +496,43 @@ footer a {
   opacity: 0.55;
 }
 
-/* Visitor (You) — left-aligned, teal */
-.chat-bubble--visitor {
+/* Interviewer — left-aligned, teal */
+.chat-bubble--interviewer {
   align-self: flex-start;
-  background: rgba(27,196,204, 0.14);
-  border: 1px solid rgba(27,196,204, 0.32);
+  background: rgba(27,196,204, 0.12);
+  border: 1px solid rgba(27,196,204, 0.28);
   color: var(--white);
   border-bottom-left-radius: 4px;
 }
-.chat-bubble--visitor .chat-bubble-label { color: var(--accent); opacity: 1; }
 
-/* Alex — left-aligned, warm amber */
-.chat-bubble--alex {
-  align-self: flex-start;
-  background: rgba(210, 160, 80, 0.10);
-  border: 1px solid rgba(210, 160, 80, 0.25);
-  color: rgba(245, 240, 232, 0.88);
-  border-bottom-left-radius: 4px;
-}
-.chat-bubble--alex .chat-bubble-label { color: #d2a050; opacity: 1; }
-
-/* Jamie — right-aligned, slate purple */
-.chat-bubble--jamie {
+/* User — right-aligned, indigo tint */
+.chat-bubble--user {
   align-self: flex-end;
-  background: rgba(140, 120, 180, 0.10);
-  border: 1px solid rgba(140, 120, 180, 0.25);
-  color: rgba(245, 240, 232, 0.88);
+  background: rgba(80,90,200, 0.18);
+  border: 1px solid rgba(100,110,220, 0.3);
+  color: var(--white);
   border-bottom-right-radius: 4px;
 }
-.chat-bubble--jamie .chat-bubble-label { color: #9b85c8; opacity: 1; }
+
+/* Peanut gallery — left-aligned, subtle italic */
+.chat-bubble--heckle {
+  align-self: flex-start;
+  background: rgba(240,242,255, 0.04);
+  border: 1px solid rgba(240,242,255, 0.08);
+  color: rgba(240,242,255, 0.45);
+  font-style: italic;
+  font-size: 0.88rem;
+  border-bottom-left-radius: 4px;
+}
+.chat-bubble-heckle-label {
+  display: block;
+  font-size: 0.7rem;
+  font-style: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(240,242,255, 0.3);
+  margin-bottom: 4px;
+}
 
 /* ─── Animations ────────────────────────────────────────────── */
 @keyframes fadeUp {

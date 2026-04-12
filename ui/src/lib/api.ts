@@ -1,11 +1,5 @@
 import type {
-  IcebreakerResponse,
-  TurnRequest,
-  TurnResponse,
-  Conversation,
   ContactRequest,
-  Turn,
-  AdminIcebreaker,
   CreateInterviewResponse,
   RespondResponse,
   SkipQuestionResponse,
@@ -55,25 +49,6 @@ async function apiFetch<T>(path: string, options: RequestInit = {}, auth = false
   return camelizeKeys(await res.json()) as T
 }
 
-export function getIcebreaker(): Promise<IcebreakerResponse> {
-  return apiFetch('/conversations/icebreakers')
-}
-
-export function postTurn(conversationId: string, body: TurnRequest): Promise<TurnResponse> {
-  return apiFetch(`/conversations/${conversationId}/turns`, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
-}
-
-export function getConversations(): Promise<{ conversations: Conversation[] }> {
-  return apiFetch('/conversations')
-}
-
-export function getConversationTurns(conversationId: string): Promise<{ turns: Turn[] }> {
-  return apiFetch(`/conversations/${conversationId}/turns`)
-}
-
 export function postContact(body: ContactRequest): Promise<{ contactId: string }> {
   return apiFetch('/contacts', {
     method: 'POST',
@@ -96,30 +71,6 @@ export function postAdminLogin(email: string): Promise<{ ok: boolean }> {
 
 export function postAdminVerify(token: string): Promise<{ ok: boolean; email?: string }> {
   return apiFetch('/admin/verify', { method: 'POST', body: JSON.stringify({ token }) })
-}
-
-// ── Admin ─────────────────────────────────────────────────────────────────────
-
-export function getAdminIcebreakers(): Promise<{ items: AdminIcebreaker[]; count: number }> {
-  return apiFetch('/admin/icebreakers')
-}
-
-export function createIcebreaker(text: string): Promise<AdminIcebreaker> {
-  return apiFetch('/admin/icebreakers', {
-    method: 'POST',
-    body: JSON.stringify({ text, is_active: 'true' }),
-  })
-}
-
-export function updateIcebreaker(id: string, patch: { text?: string; is_active?: string }): Promise<{ updated: string }> {
-  return apiFetch(`/admin/icebreakers/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(patch),
-  })
-}
-
-export function deleteIcebreaker(id: string): Promise<{ deleted: string }> {
-  return apiFetch(`/admin/icebreakers/${id}`, { method: 'DELETE' })
 }
 
 // ── Interview ─────────────────────────────────────────────────────────────────

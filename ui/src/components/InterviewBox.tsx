@@ -5,7 +5,7 @@ import MicButton from './MicButton'
 import SpeakButton from './SpeakButton'
 import Visualizer, { type VisualizerHandle } from './Visualizer'
 import ChatBubble from './ChatBubble'
-import HeckleToast from './HeckleToast'
+import type { ChatRole } from './ChatBubble'
 import { postError } from '../lib/api'
 
 const CARTESIA_API_KEY = import.meta.env.VITE_CARTESIA_API_KEY as string
@@ -42,7 +42,7 @@ export interface InterviewBoxHandle {
 
 interface ChatEntry {
   id: string
-  role: 'interviewer' | 'user'
+  role: ChatRole
   text: string
 }
 
@@ -66,7 +66,6 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [phase, setPhase] = useState<InterviewPhase>('interviewing')
   const [messages, setMessages] = useState<ChatEntry[]>([])
-  const [heckle, setHeckle] = useState<string | null>(null)
   const [status, setStatus] = useState('')
   const [statusType, setStatusType] = useState<'' | 'error' | 'playing'>('')
   const [latencyMs, setLatencyMs] = useState<number | null>(null)
@@ -207,7 +206,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
   const handleInterviewerMessage = useCallback(async (message: string, heckleText: string | null, res?: RespondResponse) => {
     addMessage('interviewer', message)
     if (heckleText) {
-      setHeckle(heckleText)
+      addMessage('heckle', heckleText)
       onHeckle?.(heckleText)
     }
     if (res) {
@@ -250,7 +249,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       setSessionId(id)
       onSessionCreated?.(id)
       onQuestionsUpdate?.(result.questionsRemaining)
-      if (result.heckle) { setHeckle(result.heckle); onHeckle?.(result.heckle) }
+      if (result.heckle) { onHeckle?.(result.heckle) }
       void handleInterviewerMessageRef.current(result.message, result.heckle ?? null)
     }).catch(err => {
       if (cancelled) return
@@ -270,7 +269,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       setSessionId(id)
       onSessionCreated?.(id)
       onQuestionsUpdate?.(result.questionsRemaining)
-      if (result.heckle) { setHeckle(result.heckle); onHeckle?.(result.heckle) }
+      if (result.heckle) { onHeckle?.(result.heckle) }
       void handleInterviewerMessageRef.current(result.message, result.heckle ?? null)
     }).catch(err => {
       if (cancelled) return
@@ -379,14 +378,12 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
 
   return (
     <div className="interview-box">
-      <HeckleToast text={heckle} key={heckle} />
-
       {messages.length > 0 && (
         <div className="chat-area" ref={chatAreaRef}>
           {messages.map(msg => (
             <ChatBubble
               key={msg.id}
-              speaker={msg.role === 'interviewer' ? 'consultant1' : 'visitor'}
+              role={msg.role}
               text={msg.text}
             />
           ))}
