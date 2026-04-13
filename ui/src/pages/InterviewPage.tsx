@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import InterviewBox, { type InterviewBoxHandle } from '../components/InterviewBox'
 import SectionFill from '../components/SectionFill'
 import FileReview from '../components/FileReview'
-import { moreQuestions, startAuth, publishProfile } from '../lib/api'
+import { moreQuestions, startAuth } from '../lib/api'
 import type { InterviewPhase } from '../lib/types'
 
 const SESSION_STORAGE_KEY = 'whoisme_session'
@@ -42,14 +42,10 @@ export default function InterviewPage() {
   const [draftFiles, setDraftFiles] = useState<Record<string, string>>(saved?.draftFiles ?? {})
   const [approvedFiles, setApprovedFiles] = useState<string[]>(saved?.approvedFiles ?? [])
 
-  // Auth / publish
+  // Auth
   const [email, setEmail] = useState('')
   const [magicLinkSent, setMagicLinkSent] = useState(false)
   const [magicLinkError, setMagicLinkError] = useState('')
-  const [username, setUsername] = useState('')
-  const [publishing, setPublishing] = useState(false)
-  const [publishError, setPublishError] = useState('')
-  const [publishedUrl, setPublishedUrl] = useState('')
 
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('whoisme_user_token'))
 
@@ -105,21 +101,6 @@ export default function InterviewPage() {
     }
   }
 
-  const handlePublish = async () => {
-    const name = username.trim()
-    if (!name) return
-    setPublishing(true)
-    setPublishError('')
-    try {
-      const res = await publishProfile(name)
-      setPublishedUrl(res.url)
-      localStorage.removeItem(SESSION_STORAGE_KEY)
-    } catch (err) {
-      setPublishError(err instanceof Error ? err.message : 'Failed to publish')
-    } finally {
-      setPublishing(false)
-    }
-  }
 
   return (
     <div className="interview-page">
@@ -162,28 +143,8 @@ export default function InterviewPage() {
 
           {phase === 'reviewing' && sessionId && (
             <div className="interview-review">
-              <div className="interview-review-toolbar">
-                <h2 className="interview-review-title">Your files</h2>
-                <button
-                  className="btn-ghost"
-                  onClick={() => handleMoreQuestions()}
-                >
-                  + more questions
-                </button>
-              </div>
 
-              <FileReview
-                sessionId={sessionId}
-                draftFiles={draftFiles}
-                approvedFiles={approvedFiles}
-                onApprove={file => setApprovedFiles(prev => [...prev, file])}
-                onDraftUpdate={(file, draft) => setDraftFiles(prev => ({ ...prev, [file]: draft }))}
-              />
-
-              {!publishedUrl && (
-                <div className="interview-publish-box">
-                  <h3 className="interview-publish-heading">Publish your profile</h3>
-
+              <div className="interview-publish-box interview-publish-box--top">
                   {!isLoggedIn && !magicLinkSent && (
                     <div className="interview-auth-section">
                       <p className="interview-auth-note">Enter your email to save and publish.</p>
@@ -207,43 +168,35 @@ export default function InterviewPage() {
                       {magicLinkError && <p className="interview-error">{magicLinkError}</p>}
                     </div>
                   )}
-
                   {!isLoggedIn && magicLinkSent && (
                     <p className="interview-auth-sent">Check your email — a sign-in link is on its way.</p>
                   )}
-
                   {isLoggedIn && (
                     <div className="interview-auth-section">
-                      <div className="interview-input-row">
-                        <span className="interview-username-prefix">whoisme.io/u/</span>
-                        <input
-                          type="text"
-                          value={username}
-                          onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
-                          placeholder="yourname"
-                          className="interview-text-input"
-                          onKeyDown={e => e.key === 'Enter' && handlePublish()}
-                        />
-                        <button
-                          className="btn-primary"
-                          onClick={handlePublish}
-                          disabled={publishing || !username.trim()}
-                        >
-                          {publishing ? 'Publishing…' : 'Publish'}
-                        </button>
-                      </div>
-                      {publishError && <p className="interview-error">{publishError}</p>}
+                      <p className="interview-auth-note">Approve files below, then publish your profile.</p>
+                      <a href="#/profile" className="btn-primary">Go to profile</a>
                     </div>
                   )}
-                </div>
-              )}
+              </div>
 
-              {publishedUrl && (
-                <div className="interview-published">
-                  Your profile is live at{' '}
-                  <a href={publishedUrl} target="_blank" rel="noopener noreferrer">{publishedUrl}</a>
-                </div>
-              )}
+              <div className="interview-review-toolbar">
+                <h2 className="interview-review-title">Your files</h2>
+                <button
+                  className="btn-ghost"
+                  onClick={() => handleMoreQuestions()}
+                >
+                  + more questions
+                </button>
+              </div>
+
+              <FileReview
+                sessionId={sessionId}
+                draftFiles={draftFiles}
+                approvedFiles={approvedFiles}
+                onApprove={file => setApprovedFiles(prev => [...prev, file])}
+                onDraftUpdate={(file, draft) => setDraftFiles(prev => ({ ...prev, [file]: draft }))}
+              />
+
             </div>
           )}
         </main>
