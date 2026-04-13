@@ -5,6 +5,7 @@ import AdminLoginPage from './pages/AdminLoginPage'
 import InterviewPage from './pages/InterviewPage'
 import LandingPage from './pages/LandingPage'
 import ProfilePage from './pages/ProfilePage'
+import PublicProfilePage from './pages/PublicProfilePage'
 import { postAdminVerify, verifyAuth, postError } from './lib/api'
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -42,6 +43,12 @@ function useHashRoute() {
 }
 
 export default function App() {
+  // Handle /u/:username pathname routes (public profiles)
+  const pathMatch = window.location.pathname.match(/^\/u\/([^/?#]+)/)
+  if (pathMatch) {
+    return <PublicProfilePage username={pathMatch[1]} />
+  }
+
   const hash     = useHashRoute()
   const basePath = hash.split('?')[0]
 
