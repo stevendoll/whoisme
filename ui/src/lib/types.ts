@@ -73,4 +73,6 @@ export interface UserProfile {
   published: boolean
   visibility: Record<string, string>
   hasBearerToken: boolean
+  lastPublishedAt: string | null
+  approvedFilesAt: Record<string, string>
 }

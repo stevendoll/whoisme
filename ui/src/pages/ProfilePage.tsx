@@ -37,6 +37,11 @@ function loadSession() {
   } catch { return null }
 }
 
+function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [visibility, setVisibility] = useState<Record<string, string>>({})
@@ -44,6 +49,7 @@ export default function ProfilePage() {
   const [publishing, setPublishing] = useState(false)
   const [publishError, setPublishError] = useState('')
   const [publishedUrl, setPublishedUrl] = useState('')
+  const [lastPublishedAt, setLastPublishedAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   const session = loadSession()
@@ -59,8 +65,8 @@ export default function ProfilePage() {
       if (p.published && p.username) {
         setPublishedUrl(`https://whoisme.io/u/${p.username}`)
       }
+      setLastPublishedAt(p.lastPublishedAt ?? null)
     }).catch(() => {
-      // Token invalid — redirect to interview
       history.replaceState(null, '', '#/interview')
       window.dispatchEvent(new HashChangeEvent('hashchange'))
     }).finally(() => setLoading(false))
@@ -75,7 +81,7 @@ export default function ProfilePage() {
       const res = await updateVisibility({ [section]: next })
       setVisibility(res.visibility)
     } catch {
-      setVisibility(prev => ({ ...prev, [section]: current })) // revert
+      setVisibility(prev => ({ ...prev, [section]: current }))
     }
   }
 
@@ -87,6 +93,7 @@ export default function ProfilePage() {
     try {
       const res = await publishProfile(name)
       setPublishedUrl(res.url)
+      setLastPublishedAt(res.lastPublishedAt)
       localStorage.removeItem(SESSION_STORAGE_KEY)
     } catch (err) {
       setPublishError(err instanceof Error ? err.message : 'Failed to publish')
@@ -100,6 +107,15 @@ export default function ProfilePage() {
     if (draftFiles[section]) return 'draft'
     return 'none'
   }
+
+  // A file is "changed since publish" if its approved_at timestamp is newer than last_published_at
+  const isChangedSincePublish = (section: string): boolean => {
+    const approvedAt = profile?.approvedFilesAt?.[section]
+    if (!approvedAt || !lastPublishedAt) return false
+    return approvedAt > lastPublishedAt
+  }
+
+  const anyChangedSincePublish = SECTIONS.some(s => isChangedSincePublish(s))
 
   const completionCount = SECTIONS.filter(s => getStatus(s) !== 'none').length
   const approvedCount = SECTIONS.filter(s => getStatus(s) === 'approved').length
@@ -130,8 +146,26 @@ export default function ProfilePage() {
         <section className="profile-publish-section">
           {publishedUrl ? (
             <div className="profile-published">
-              <span className="profile-published-label">Your profile is live at</span>
-              <a href={publishedUrl} target="_blank" rel="noopener noreferrer" className="profile-published-url">{publishedUrl}</a>
+              <div className="profile-published-row">
+                <span className="profile-published-label">Your profile is live at</span>
+                <a href={publishedUrl} target="_blank" rel="noopener noreferrer" className="profile-published-url">{publishedUrl}</a>
+              </div>
+              {lastPublishedAt && (
+                <span className="profile-published-date">Last published {fmtDate(lastPublishedAt)}</span>
+              )}
+              <div className="profile-publish-actions">
+                {(anyApproved || anyChangedSincePublish) && (
+                  <button
+                    className={`btn-primary${anyChangedSincePublish ? ' btn-primary--active' : ''}`}
+                    onClick={handlePublish}
+                    disabled={publishing}
+                  >
+                    {publishing ? 'Publishing…' : anyChangedSincePublish ? 'Republish (changes pending)' : 'Republish'}
+                  </button>
+                )}
+                <a href="#/interview" className="btn-ghost">Edit files</a>
+              </div>
+              {publishError && <p className="interview-error">{publishError}</p>}
             </div>
           ) : (
             <div className="profile-publish-form">
@@ -154,9 +188,7 @@ export default function ProfilePage() {
                     {publishing ? 'Publishing…' : 'Publish'}
                   </button>
                 )}
-                <a href="#/interview" className="btn-ghost">
-                  Review files
-                </a>
+                <a href="#/interview" className="btn-ghost">Edit files</a>
               </div>
               {publishError && <p className="interview-error">{publishError}</p>}
               {!anyApproved && (
@@ -176,6 +208,7 @@ export default function ProfilePage() {
               <tr>
                 <th>File</th>
                 <th>Status</th>
+                <th>Last modified</th>
                 <th>Visibility</th>
               </tr>
             </thead>
@@ -183,13 +216,21 @@ export default function ProfilePage() {
               {SECTIONS.map(section => {
                 const status = getStatus(section)
                 const vis = visibility[section] ?? 'public'
+                const approvedAt = profile?.approvedFilesAt?.[section]
+                const changed = isChangedSincePublish(section)
                 return (
-                  <tr key={section} className={`profile-file-row profile-file-row--${status}`}>
-                    <td className="profile-file-name">{SECTION_LABELS[section]}</td>
+                  <tr key={section} className={`profile-file-row profile-file-row--${status}${changed ? ' profile-file-row--changed' : ''}`}>
+                    <td className="profile-file-name">
+                      {SECTION_LABELS[section]}
+                      {changed && <span className="profile-badge profile-badge--changed" title="Changed since last publish">updated</span>}
+                    </td>
                     <td className="profile-file-status">
                       {status === 'approved' && <span className="profile-badge profile-badge--approved">approved</span>}
                       {status === 'draft'    && <span className="profile-badge profile-badge--draft">draft</span>}
                       {status === 'none'     && <span className="profile-badge profile-badge--none">not started</span>}
+                    </td>
+                    <td className="profile-file-date">
+                      {approvedAt ? fmtDate(approvedAt) : '—'}
                     </td>
                     <td className="profile-file-visibility">
                       {status !== 'none' && (

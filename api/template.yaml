@@ -57,6 +57,11 @@ Parameters:
     Default: ""
     Description: Cloudflare KV namespace ID for profile storage
 
+  CfAccountId:
+    Type: String
+    Default: ""
+    Description: Cloudflare account ID (avoids extra API call on cold start)
+
 Globals:
   Function:
     Runtime: python3.12
@@ -81,6 +86,7 @@ Globals:
         CF_API_TOKEN: !Ref CfApiToken
         CF_ZONE_ID: !Ref CfZoneId
         CF_KV_NAMESPACE_ID: !Ref CfKvNamespaceId
+        CF_ACCOUNT_ID: !Ref CfAccountId
 
 Resources:
   # ── DynamoDB Tables ─────────────────────────────────────────────────────────

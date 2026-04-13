@@ -358,10 +358,13 @@ def review_approve(session_id: str):
         raise BadRequestError(f"No draft exists for section: {file}")
 
     approved_files[file] = draft
+    approved_files_at = dict(session.get("approved_files_at", {}))
+    approved_files_at[file] = _now_iso()
     session["approved_files"] = approved_files
+    session["approved_files_at"] = approved_files_at
     _save_session(session)
 
-    return {"approved_files": list(approved_files.keys())}
+    return {"approved_files": list(approved_files.keys()), "approved_files_at": approved_files_at}
 
 
 @router.post("/interview/<session_id>/review/feedback")
