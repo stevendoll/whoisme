@@ -145,6 +145,43 @@ def _get_cf_account_id() -> str:
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
+@router.get("/users/profile/<username>")
+def get_public_profile(username: str):
+    result = db.users_table.query(
+        IndexName="username-index",
+        KeyConditionExpression="username = :u",
+        ExpressionAttributeValues={":u": username},
+    )
+    users = result.get("Items", [])
+    if not users:
+        raise NotFoundError("Profile not found")
+
+    user = users[0]
+    if not user.get("published"):
+        raise NotFoundError("Profile not found")
+
+    visibility = user.get("visibility", DEFAULT_VISIBILITY)
+
+    # Gather approved files across all sessions
+    scan_resp = db.interview_sessions_table.scan(
+        FilterExpression="user_id = :u",
+        ExpressionAttributeValues={":u": user["user_id"]},
+    )
+    approved_files: dict = {}
+    for session in scan_resp.get("Items", []):
+        approved_files.update(session.get("approved_files", {}))
+
+    # Filter to public files only
+    public_files = {k: v for k, v in approved_files.items() if visibility.get(k, "public") == "public"}
+
+    return {
+        "username": username,
+        "files": public_files,
+        "visibility": visibility,
+        "updated_at": user.get("created_at", ""),
+    }
+
+
 @router.post("/users/start")
 def start_auth():
     body = router.current_event.json_body or {}
