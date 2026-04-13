@@ -40,7 +40,7 @@ def _hash_token(token: str) -> str:
 
 
 def _get_current_user(event) -> dict:
-    auth = (event.get_header_value("authorization") or "").strip()
+    auth = (event.headers.get("authorization") or "").strip()
     if not auth.lower().startswith("bearer "):
         raise UnauthorizedError("Missing Authorization header")
     token = auth[7:]
@@ -171,14 +171,23 @@ def get_public_profile(username: str):
     for session in scan_resp.get("Items", []):
         approved_files.update(session.get("approved_files", {}))
 
-    # Filter to public files only
-    public_files = {k: v for k, v in approved_files.items() if visibility.get(k, "public") == "public"}
+    # Check for bearer token in Authorization header — include private files if valid
+    auth = (router.current_event.headers.get("authorization") or "").strip()
+    bearer_token = auth[7:] if auth.lower().startswith("bearer ") else None
+    token_hash = _hash_token(bearer_token) if bearer_token else None
+    authed = token_hash and token_hash == user.get("token_hash")
+
+    if authed:
+        files = approved_files
+    else:
+        files = {k: v for k, v in approved_files.items() if visibility.get(k, "public") == "public"}
 
     return {
         "username": username,
-        "files": public_files,
+        "files": files,
         "visibility": visibility,
         "updated_at": user.get("created_at", ""),
+        "authed": bool(authed),
     }
 
 
