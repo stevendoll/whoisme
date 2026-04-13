@@ -1214,7 +1214,7 @@ footer a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 64px;
+  height: 80px;
   padding: 0 40px;
   border-bottom: 1px solid var(--border);
   backdrop-filter: blur(12px);
@@ -1226,7 +1226,7 @@ footer a {
   display: flex;
   align-items: center;
 }
-.interview-logo img { height: 32px; width: auto; display: block; }
+.interview-logo img { height: 48px; width: auto; display: block; }
 .interview-logo:hover { opacity: 0.8; }
 
 .interview-progress {
@@ -1412,7 +1412,7 @@ footer a {
 }
 
 .landing-logo {
-  width: min(180px, 45vw);
+  width: min(360px, 80vw);
   height: auto;
   display: block;
   margin: 0 auto 24px;
@@ -1439,4 +1439,163 @@ footer a {
   font-size: 0.78rem;
   padding: 13px 36px;
   letter-spacing: 0.14em;
+}
+
+/* ─── Profile page ──────────────────────────────────────────── */
+
+.profile-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(240,242,255,0.4);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.8rem;
+}
+
+.profile-body {
+  flex: 1;
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 40px 40px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+/* Publish section */
+.profile-publish-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 28px 32px;
+  background: rgba(27,196,204,0.04);
+}
+
+.profile-publish-form { display: flex; flex-direction: column; gap: 12px; }
+
+.profile-url-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.profile-publish-hint {
+  font-size: 0.78rem;
+  color: rgba(240,242,255,0.4);
+  margin: 0;
+}
+
+.profile-published {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-published-label {
+  font-size: 0.78rem;
+  color: rgba(240,242,255,0.5);
+  font-family: 'DM Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.profile-published-url {
+  color: var(--accent);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+/* File table */
+.profile-files { display: flex; flex-direction: column; gap: 12px; }
+
+.profile-files-summary {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(240,242,255,0.4);
+}
+
+.profile-files-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.profile-files-table th {
+  text-align: left;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(240,242,255,0.3);
+  padding: 0 16px 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-file-row td {
+  padding: 12px 16px 12px 0;
+  border-bottom: 1px solid rgba(240,242,255,0.05);
+  vertical-align: middle;
+}
+
+.profile-file-row--none { opacity: 0.4; }
+
+.profile-file-name { color: var(--white); font-weight: 500; }
+
+.profile-badge {
+  display: inline-block;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border-radius: 3px;
+}
+
+.profile-badge--approved { background: rgba(27,196,204,0.15); color: var(--accent); }
+.profile-badge--draft    { background: rgba(240,242,255,0.08); color: rgba(240,242,255,0.6); }
+.profile-badge--none     { background: transparent; color: rgba(240,242,255,0.3); }
+
+.profile-vis-toggle {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.profile-vis-toggle--public  { color: var(--accent); border-color: rgba(27,196,204,0.3); }
+.profile-vis-toggle--private { color: rgba(240,242,255,0.4); border-color: var(--border); }
+.profile-vis-toggle:hover { opacity: 0.75; }
+
+.profile-account {
+  font-size: 0.78rem;
+  color: rgba(240,242,255,0.3);
+  font-family: 'DM Mono', monospace;
+}
+
+/* Publish box at top of review */
+.interview-publish-box--top {
+  margin-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  border-bottom: none;
+}
+
+@media (max-width: 600px) {
+  .profile-body { padding: 24px 16px 60px; }
+  .profile-publish-section { padding: 20px 16px; }
 }

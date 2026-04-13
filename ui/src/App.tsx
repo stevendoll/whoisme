@@ -4,6 +4,7 @@ import AdminPage from './pages/AdminPage'
 import AdminLoginPage from './pages/AdminLoginPage'
 import InterviewPage from './pages/InterviewPage'
 import LandingPage from './pages/LandingPage'
+import ProfilePage from './pages/ProfilePage'
 import { postAdminVerify, verifyAuth, postError } from './lib/api'
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -76,7 +77,7 @@ export default function App() {
 
     verifyAuth(token).then(r => {
       localStorage.setItem(USER_TOKEN_KEY, r.token)
-      history.replaceState(null, '', '#/interview')
+      history.replaceState(null, '', '#/profile')
       window.dispatchEvent(new HashChangeEvent('hashchange'))
     }).catch(() => {
       history.replaceState(null, '', '#/interview')
@@ -88,6 +89,7 @@ export default function App() {
   const page = basePath === '#/admin' && adminAuthed ? 'admin'
              : basePath === '#/admin'                ? 'admin-login'
              : basePath === '#/interview'            ? 'interview'
+             : basePath === '#/profile'              ? 'profile'
              : 'landing'
 
   return (
@@ -97,6 +99,7 @@ export default function App() {
       {page === 'admin'       ? <AdminPage />
      : page === 'admin-login' ? <AdminLoginPage />
      : page === 'interview'   ? <InterviewPage />
+     : page === 'profile'     ? <ProfilePage />
      : <LandingPage />}
     </ErrorBoundary>
   )
