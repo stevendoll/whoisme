@@ -202,9 +202,7 @@ def verify_auth():
         user = {
             "user_id": str(uuid.uuid4()),
             "email": email,
-            "username": None,
             "created_at": _now_iso(),
-            "token_hash": None,
             "published": False,
             "visibility": DEFAULT_VISIBILITY,
         }
