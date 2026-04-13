@@ -93,7 +93,8 @@ jobs:
               "SlackmailApiKey='${{ secrets.SLACKMAIL_API_KEY }}'" \
               "CfApiToken='${{ secrets.CLOUDFLARE_API_TOKEN }}'" \
               "CfZoneId='${{ secrets.CLOUDFLARE_ZONE_ID }}'" \
-              "CfKvNamespaceId='${{ secrets.CF_KV_NAMESPACE_ID }}'"
+              "CfKvNamespaceId='${{ secrets.CF_KV_NAMESPACE_ID }}'" \
+              "CfAccountId='${{ secrets.CF_ACCOUNT_ID }}'"
 
       - name: Update api.whoisme.io DNS
         run: |

@@ -369,5 +369,220 @@ class TestBearerToken(unittest.TestCase):
         self.assertEqual(result["statusCode"], 401)
 
 
+@mock_aws
+class TestPublicProfileKvPath(unittest.TestCase):
+    """GET /users/profile/:username — KV fast path."""
+
+    def setUp(self):
+        import importlib
+        import db as db_module
+        self.ddb = boto3.resource("dynamodb", region_name="us-east-1")
+        _create_tables(self.ddb)
+        importlib.reload(db_module)
+
+    def _call(self, username, bearer_token=None):
+        from api.app import handler
+        headers = {}
+        if bearer_token:
+            headers["authorization"] = f"Bearer {bearer_token}"
+        event = _make_event("GET", f"/users/profile/{username}", headers=headers)
+        result = handler(event, MagicMock())
+        return result["statusCode"], json.loads(result["body"])
+
+    def test_kv_path_returns_public_files(self):
+        """When KV returns data, use it instead of DynamoDB."""
+        kv_profile = {
+            "username": "kvuser",
+            "updated_at": "2026-01-01T00:00:00+00:00",
+            "files": {
+                "identity": "I am a developer.",
+                "communication-style": "I like async.",
+            },
+            "visibility": {
+                "identity": "public",
+                "communication-style": "private",
+            },
+            "token_hash": None,
+        }
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = kv_profile
+
+        with patch("api.routers.users.requests.get", return_value=mock_resp), \
+             patch("api.routers.users._CF_TOKEN", "fake-token"), \
+             patch("api.routers.users._CF_KV_NS", "fake-ns"), \
+             patch("api.routers.users._get_cf_account_id", return_value="fake-acct"):
+            status, body = self._call("kvuser")
+
+        self.assertEqual(status, 200)
+        self.assertIn("identity", body["files"])
+        self.assertNotIn("communication-style", body["files"])
+        self.assertFalse(body.get("authed"))
+
+    def test_kv_path_bearer_token_unlocks_private_files(self):
+        token = "my-bearer"
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        kv_profile = {
+            "username": "kvuser",
+            "updated_at": "2026-01-01T00:00:00+00:00",
+            "files": {
+                "identity": "I am a developer.",
+                "communication-style": "I like async.",
+            },
+            "visibility": {"identity": "public", "communication-style": "private"},
+            "token_hash": token_hash,
+        }
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = kv_profile
+
+        with patch("api.routers.users.requests.get", return_value=mock_resp), \
+             patch("api.routers.users._CF_TOKEN", "fake-token"), \
+             patch("api.routers.users._CF_KV_NS", "fake-ns"), \
+             patch("api.routers.users._get_cf_account_id", return_value="fake-acct"):
+            status, body = self._call("kvuser", bearer_token=token)
+
+        self.assertEqual(status, 200)
+        self.assertTrue(body.get("authed"))
+        self.assertIn("communication-style", body["files"])
+
+    def test_kv_404_returns_not_found(self):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 404
+
+        with patch("api.routers.users.requests.get", return_value=mock_resp), \
+             patch("api.routers.users._CF_TOKEN", "fake-token"), \
+             patch("api.routers.users._CF_KV_NS", "fake-ns"), \
+             patch("api.routers.users._get_cf_account_id", return_value="fake-acct"):
+            status, _ = self._call("nobody")
+
+        self.assertEqual(status, 404)
+
+    def test_kv_error_falls_back_to_dynamodb(self):
+        """On KV exception, fall back to DynamoDB scan."""
+        _seed_published_user(self.ddb, username="fallbackuser")
+
+        with patch("api.routers.users.requests.get", side_effect=Exception("timeout")), \
+             patch("api.routers.users._CF_TOKEN", "fake-token"), \
+             patch("api.routers.users._CF_KV_NS", "fake-ns"), \
+             patch("api.routers.users._get_cf_account_id", return_value="fake-acct"):
+            status, body = self._call("fallbackuser")
+
+        self.assertEqual(status, 200)
+        self.assertIn("identity", body["files"])
+
+
+@mock_aws
+class TestPublishTimestamps(unittest.TestCase):
+    """Publish stores last_published_at; approve stores approved_files_at."""
+
+    def setUp(self):
+        import importlib
+        import db as db_module
+        self.ddb = boto3.resource("dynamodb", region_name="us-east-1")
+        _create_tables(self.ddb)
+        importlib.reload(db_module)
+
+    def _make_session_token(self, user_id):
+        token = str(uuid.uuid4())
+        self.ddb.Table("user-tokens").put_item(Item={
+            "token_id": token,
+            "user_id": user_id,
+            "ttl": int(time.time()) + 86400,
+        })
+        return token
+
+    def _seed_user_with_session(self):
+        user_id = str(uuid.uuid4())
+        self.ddb.Table("users").put_item(Item={
+            "user_id": user_id,
+            "email": "pub@example.com",
+            "published": False,
+            "visibility": {s: "public" for s in ["identity", "role-and-responsibilities"]},
+        })
+        session_id = str(uuid.uuid4())
+        self.ddb.Table("interview-sessions").put_item(Item={
+            "session_id": session_id,
+            "user_id": user_id,
+            "phase": "reviewing",
+            "approved_files": {"identity": "I am a tester.", "role-and-responsibilities": "I test things."},
+            "approved_files_at": {"identity": "2026-01-10T00:00:00+00:00", "role-and-responsibilities": "2026-01-11T00:00:00+00:00"},
+        })
+        session_token = self._make_session_token(user_id)
+        return user_id, session_token
+
+    def _call(self, method, path, session_token, body=None):
+        from api.app import handler
+        event = _make_event(method, path, body=body, headers={
+            "authorization": f"Bearer {session_token}",
+        })
+        result = handler(event, MagicMock())
+        return result["statusCode"], json.loads(result["body"])
+
+    def test_publish_stores_last_published_at(self):
+        user_id, session_token = self._seed_user_with_session()
+        with patch("api.routers.users._write_profile_to_kv"):
+            status, body = self._call("POST", "/users/me/publish", session_token, {"username": "timestampuser"})
+        self.assertEqual(status, 200)
+        self.assertIn("last_published_at", body)
+        self.assertIsNotNone(body["last_published_at"])
+        # Also stored on DynamoDB user record
+        user = self.ddb.Table("users").get_item(Key={"user_id": user_id})["Item"]
+        self.assertIn("last_published_at", user)
+
+    def test_get_me_returns_approved_files_at_and_last_published_at(self):
+        user_id, session_token = self._seed_user_with_session()
+        # Simulate already-published
+        now = "2026-01-12T00:00:00+00:00"
+        self.ddb.Table("users").update_item(
+            Key={"user_id": user_id},
+            UpdateExpression="SET last_published_at = :t, username = :u, published = :p",
+            ExpressionAttributeValues={":t": now, ":u": "pubuser", ":p": True},
+        )
+        status, body = self._call("GET", "/users/me", session_token)
+        self.assertEqual(status, 200)
+        self.assertEqual(body["last_published_at"], now)
+        self.assertIn("approved_files_at", body)
+        self.assertEqual(body["approved_files_at"]["identity"], "2026-01-10T00:00:00+00:00")
+
+    def test_approve_stores_approved_files_at(self):
+        """POST /interview/:id/review/approve should record approved_files_at timestamp."""
+        from api.app import handler
+
+        # Create a session in reviewing phase with a draft
+        session_id = str(uuid.uuid4())
+        self.ddb.Table("interview-sessions").put_item(Item={
+            "session_id": session_id,
+            "phase": "reviewing",
+            "draft_files": {"identity": "Draft identity text."},
+            "approved_files": {},
+        })
+        event = _make_event("POST", f"/interview/{session_id}/review/approve", body={"file": "identity"})
+        result = handler(event, MagicMock())
+        self.assertEqual(result["statusCode"], 200)
+        body = json.loads(result["body"])
+        self.assertIn("approved_files_at", body)
+        self.assertIn("identity", body["approved_files_at"])
+        # Verify persisted in DynamoDB
+        session = self.ddb.Table("interview-sessions").get_item(Key={"session_id": session_id})["Item"]
+        self.assertIn("approved_files_at", session)
+        self.assertIn("identity", session["approved_files_at"])
+
+    def test_changed_since_publish_detection(self):
+        """approved_files_at newer than last_published_at indicates unpublished changes."""
+        user_id, session_token = self._seed_user_with_session()
+        # last_published_at is before the approved_files_at timestamps in the session
+        self.ddb.Table("users").update_item(
+            Key={"user_id": user_id},
+            UpdateExpression="SET last_published_at = :t, username = :u, published = :p",
+            ExpressionAttributeValues={":t": "2026-01-09T00:00:00+00:00", ":u": "changeduser", ":p": True},
+        )
+        status, body = self._call("GET", "/users/me", session_token)
+        self.assertEqual(status, 200)
+        # Both files were approved after the last publish
+        self.assertGreater(body["approved_files_at"]["identity"], body["last_published_at"])
+        self.assertGreater(body["approved_files_at"]["role-and-responsibilities"], body["last_published_at"])
+
+
 if __name__ == "__main__":
     unittest.main()

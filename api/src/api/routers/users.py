@@ -16,11 +16,12 @@ from models import DEFAULT_VISIBILITY, SECTIONS, User
 logger = Logger(service="whoisme-api")
 router = Router()
 
-_ses        = boto3.client("sesv2", region_name="us-east-1")
-_FROM_EMAIL = os.environ.get("NOTIFICATION_EMAIL", "")
-_SITE_URL   = os.environ.get("SITE_URL", "https://whoisme.io")
-_CF_TOKEN   = os.environ.get("CF_API_TOKEN", "")
-_CF_KV_NS   = os.environ.get("CF_KV_NAMESPACE_ID", "")
+_ses           = boto3.client("sesv2", region_name="us-east-1")
+_FROM_EMAIL    = os.environ.get("NOTIFICATION_EMAIL", "")
+_SITE_URL      = os.environ.get("SITE_URL", "https://whoisme.io")
+_CF_TOKEN      = os.environ.get("CF_API_TOKEN", "")
+_CF_KV_NS      = os.environ.get("CF_KV_NAMESPACE_ID", "")
+_CF_ACCOUNT_ID = os.environ.get("CF_ACCOUNT_ID", "")
 
 _SESSION_TTL_H = 24
 _USER_TOKEN_TTL_DAYS = 365
@@ -99,19 +100,15 @@ def _write_profile_to_kv(user: dict, approved_files: dict) -> None:
     profile = {
         "username": username,
         "updated_at": _now_iso(),
+        "last_published_at": user.get("last_published_at"),
         "files": approved_files,
         "visibility": user.get("visibility", DEFAULT_VISIBILITY),
         "token_hash": user.get("token_hash"),
     }
 
-    url = f"https://api.cloudflare.com/client/v4/accounts/{{account_id}}/storage/kv/namespaces/{_CF_KV_NS}/values/{username}"
-    # Account ID is embedded in the KV namespace URL pattern; use workers API
-    kv_url = f"https://api.cloudflare.com/client/v4/accounts/PLACEHOLDER/storage/kv/namespaces/{_CF_KV_NS}/values/{username}"
-
-    # The account ID is not stored in env — derive it from the KV namespace ID via the API
     try:
         resp = requests.put(
-            f"https://api.cloudflare.com/client/v4/accounts/{_get_cf_account_id()}/storage/kv/namespaces/{_CF_KV_NS}/values/{username}",
+            _kv_url(username),
             headers={"Authorization": f"Bearer {_CF_TOKEN}", "Content-Type": "application/json"},
             data=json.dumps(profile),
             timeout=10,
@@ -129,6 +126,8 @@ _cf_account_id_cache: str | None = None
 
 def _get_cf_account_id() -> str:
     global _cf_account_id_cache
+    if _CF_ACCOUNT_ID:
+        return _CF_ACCOUNT_ID
     if _cf_account_id_cache:
         return _cf_account_id_cache
     resp = requests.get(
@@ -143,10 +142,48 @@ def _get_cf_account_id() -> str:
     raise RuntimeError("Could not retrieve Cloudflare account ID")
 
 
+def _kv_url(username: str) -> str:
+    return (
+        f"https://api.cloudflare.com/client/v4/accounts/{_get_cf_account_id()}"
+        f"/storage/kv/namespaces/{_CF_KV_NS}/values/{username}"
+    )
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.get("/users/profile/<username>")
 def get_public_profile(username: str):
+    # Check for bearer token in Authorization header
+    auth = (router.current_event.headers.get("authorization") or "").strip()
+    caller_token = auth[7:] if auth.lower().startswith("bearer ") else None
+
+    # Fast path: read from Cloudflare KV (avoids DynamoDB scan)
+    if _CF_TOKEN and _CF_KV_NS:
+        try:
+            kv_resp = requests.get(
+                _kv_url(username),
+                headers={"Authorization": f"Bearer {_CF_TOKEN}"},
+                timeout=5,
+            )
+            if kv_resp.status_code == 404:
+                raise NotFoundError("Profile not found")
+            if kv_resp.status_code == 200:
+                profile = kv_resp.json()
+                visibility   = profile.get("visibility", DEFAULT_VISIBILITY)
+                all_files    = profile.get("files", {})
+                stored_hash  = profile.get("token_hash")
+                authed = bool(caller_token and stored_hash and _hash_token(caller_token) == stored_hash)
+                files = all_files if authed else {
+                    k: v for k, v in all_files.items() if visibility.get(k, "public") == "public"
+                }
+                return {"username": username, "files": files, "visibility": visibility,
+                        "updated_at": profile.get("updated_at", ""), "authed": authed}
+        except NotFoundError:
+            raise
+        except Exception as e:
+            logger.warning(f"KV read failed, falling back to DynamoDB: {e}")
+
+    # Fallback: DynamoDB scan (used when KV not configured or on KV error)
     result = db.users_table.query(
         IndexName="username-index",
         KeyConditionExpression="username = :u",
@@ -162,7 +199,6 @@ def get_public_profile(username: str):
 
     visibility = user.get("visibility", DEFAULT_VISIBILITY)
 
-    # Gather approved files across all sessions
     scan_resp = db.interview_sessions_table.scan(
         FilterExpression="user_id = :u",
         ExpressionAttributeValues={":u": user["user_id"]},
@@ -171,23 +207,18 @@ def get_public_profile(username: str):
     for session in scan_resp.get("Items", []):
         approved_files.update(session.get("approved_files", {}))
 
-    # Check for bearer token in Authorization header — include private files if valid
-    auth = (router.current_event.headers.get("authorization") or "").strip()
-    bearer_token = auth[7:] if auth.lower().startswith("bearer ") else None
-    token_hash = _hash_token(bearer_token) if bearer_token else None
-    authed = token_hash and token_hash == user.get("token_hash")
-
-    if authed:
-        files = approved_files
-    else:
-        files = {k: v for k, v in approved_files.items() if visibility.get(k, "public") == "public"}
+    token_hash = _hash_token(caller_token) if caller_token else None
+    authed = bool(token_hash and token_hash == user.get("token_hash"))
+    files = approved_files if authed else {
+        k: v for k, v in approved_files.items() if visibility.get(k, "public") == "public"
+    }
 
     return {
         "username": username,
         "files": files,
         "visibility": visibility,
         "updated_at": user.get("created_at", ""),
-        "authed": bool(authed),
+        "authed": authed,
     }
 
 
@@ -282,13 +313,14 @@ def verify_auth():
 def get_me():
     user = _get_current_user(router.current_event)
 
-    # Find their interview session (most recent linked)
-    approved_files: dict = {}
-    sessions = db.interview_sessions_table.query(
-        IndexName="user-id-index",
-        KeyConditionExpression="user_id = :u",
+    # Gather approved_files_at across all linked sessions (scan until GSI is added)
+    approved_files_at: dict = {}
+    scan_resp = db.interview_sessions_table.scan(
+        FilterExpression="user_id = :u",
         ExpressionAttributeValues={":u": user["user_id"]},
-    ) if False else {"Items": []}  # GSI not added yet — fetch via scan workaround below
+    )
+    for session in scan_resp.get("Items", []):
+        approved_files_at.update(session.get("approved_files_at", {}))
 
     return {
         "user_id": user["user_id"],
@@ -297,6 +329,8 @@ def get_me():
         "published": user.get("published", False),
         "visibility": user.get("visibility", DEFAULT_VISIBILITY),
         "has_bearer_token": bool(user.get("token_hash")),
+        "last_published_at": user.get("last_published_at"),
+        "approved_files_at": approved_files_at,
     }
 
 
@@ -361,16 +395,18 @@ def publish():
     if not approved_files:
         raise BadRequestError("No approved files to publish")
 
+    now = _now_iso()
     db.users_table.update_item(
         Key={"user_id": user["user_id"]},
-        UpdateExpression="SET username = :u, published = :p",
-        ExpressionAttributeValues={":u": username, ":p": True},
+        UpdateExpression="SET username = :u, published = :p, last_published_at = :t",
+        ExpressionAttributeValues={":u": username, ":p": True, ":t": now},
     )
     user["username"] = username
+    user["last_published_at"] = now
 
     _write_profile_to_kv(user, approved_files)
 
-    return {"username": username, "url": f"https://whoisme.io/u/{username}"}
+    return {"username": username, "url": f"https://whoisme.io/u/{username}", "last_published_at": now}
 
 
 @router.post("/users/me/token")

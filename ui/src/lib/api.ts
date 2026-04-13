@@ -133,7 +133,7 @@ export function updateVisibility(visibility: Record<string, string>): Promise<{ 
   return apiFetch('/users/me/visibility', { method: 'PATCH', body: JSON.stringify({ visibility }) }, true)
 }
 
-export function publishProfile(username: string): Promise<{ username: string; url: string }> {
+export function publishProfile(username: string): Promise<{ username: string; url: string; lastPublishedAt: string }> {
   return apiFetch('/users/me/publish', { method: 'POST', body: JSON.stringify({ username }) }, true)
 }
 
