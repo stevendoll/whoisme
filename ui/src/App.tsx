@@ -79,7 +79,8 @@ export default function App() {
       localStorage.setItem(USER_TOKEN_KEY, r.token)
       history.replaceState(null, '', '#/profile')
       window.dispatchEvent(new HashChangeEvent('hashchange'))
-    }).catch(() => {
+    }).catch((err) => {
+      console.error('[verify] failed:', err?.message ?? err)
       history.replaceState(null, '', '#/interview')
       window.dispatchEvent(new HashChangeEvent('hashchange'))
     })
