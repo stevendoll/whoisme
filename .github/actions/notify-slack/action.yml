@@ -1,0 +1,28 @@
+name: Notify Slack on failure
+description: Posts a CI/deploy failure notification to the dev-tools Slack channel via Slackmail.
+
+inputs:
+  slackmail_url:
+    description: Slackmail service base URL
+    required: true
+  slackmail_api_key:
+    description: Slackmail API key
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Post failure to Slack
+      shell: bash
+      env:
+        SLACKMAIL_URL: ${{ inputs.slackmail_url }}
+        SLACKMAIL_API_KEY: ${{ inputs.slackmail_api_key }}
+        WORKFLOW: ${{ github.workflow }}
+        JOB: ${{ github.job }}
+        REF: ${{ github.ref_name }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        curl -s -X POST "${SLACKMAIL_URL}/slack" \
+          -H "Authorization: Bearer ${SLACKMAIL_API_KEY}" \
+          -H "Content-Type: application/json" \
+          -d "{\"channel\":\"dev-tools\",\"text\":\"CI failure in *${WORKFLOW}* / *${JOB}*\nBranch: \`${REF}\`\nRun: ${RUN_URL}\"}"

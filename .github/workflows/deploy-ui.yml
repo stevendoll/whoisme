@@ -64,3 +64,10 @@ jobs:
 
       - name: Smoke test
         run: curl -sf https://whoisme.io > /dev/null && echo "UI smoke test passed"
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: ./.github/actions/notify-slack
+        with:
+          slackmail_url: ${{ secrets.SLACKMAIL_URL }}
+          slackmail_api_key: ${{ secrets.SLACKMAIL_API_KEY }}

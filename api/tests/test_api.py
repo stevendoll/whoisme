@@ -584,5 +584,475 @@ class TestPublishTimestamps(unittest.TestCase):
         self.assertGreater(body["approved_files_at"]["role-and-responsibilities"], body["last_published_at"])
 
 
+_MOCK_QUESTION = {"message": "Tell me about yourself.", "heckle": None, "sections_touched": []}
+_MOCK_DRAFT    = {"draft": "This is a generated draft."}
+
+
+def _seed_interview_session(ddb, phase="interviewing", questions_asked=0, questions_total=20,
+                            skipped_sections=None, draft_files=None, approved_files=None, history=None):
+    """Seed an interview session in moto DynamoDB. Returns session_id."""
+    session_id = str(uuid.uuid4())
+    ddb.Table("interview-sessions").put_item(Item={
+        "session_id": session_id,
+        "phase": phase,
+        "questions_asked": questions_asked,
+        "questions_total": questions_total,
+        "section_density": {},
+        "skipped_sections": skipped_sections or [],
+        "approved_files": approved_files or {},
+        "approved_files_at": {},
+        "draft_files": draft_files or {},
+        "history": history or [
+            {"role": "user", "content": "Please begin the interview."},
+            {"role": "assistant", "content": "Tell me about yourself."},
+        ],
+        "created_at": "2026-01-01T00:00:00+00:00",
+        "ttl": int(time.time()) + 86400 * 30,
+    })
+    return session_id
+
+
+@mock_aws
+class TestGetSession(unittest.TestCase):
+    """GET /interview/<session_id>"""
+
+    def setUp(self):
+        import importlib, db as db_module
+        self.ddb = boto3.resource("dynamodb", region_name="us-east-1")
+        _create_tables(self.ddb)
+        importlib.reload(db_module)
+
+    def _call(self, session_id):
+        from api.app import handler
+        result = handler(_make_event("GET", f"/interview/{session_id}"), MagicMock())
+        return result["statusCode"], json.loads(result["body"])
+
+    def test_returns_correct_fields(self):
+        sid = _seed_interview_session(self.ddb, questions_asked=5,
+                                      draft_files={"identity": "draft"},
+                                      approved_files={"role-and-responsibilities": "approved"})
+        status, body = self._call(sid)
+        self.assertEqual(status, 200)
+        self.assertEqual(body["session_id"], sid)
+        self.assertEqual(body["phase"], "interviewing")
+        self.assertEqual(body["questions_asked"], 5)
+        self.assertEqual(body["questions_remaining"], 15)
+        self.assertIn("identity", body["draft_files"])
+        self.assertIn("role-and-responsibilities", body["approved_files"])
+
+    def test_questions_remaining_arithmetic(self):
+        sid = _seed_interview_session(self.ddb, questions_asked=15, questions_total=20)
+        _, body = self._call(sid)
+        self.assertEqual(body["questions_remaining"], 5)
+
+    def test_missing_session_returns_404(self):
+        status, _ = self._call(str(uuid.uuid4()))
+        self.assertEqual(status, 404)
+
+    def test_reviewing_phase_fields(self):
+        sid = _seed_interview_session(self.ddb, phase="reviewing",
+                                      approved_files={"identity": "approved content"})
+        _, body = self._call(sid)
+        self.assertEqual(body["phase"], "reviewing")
+        self.assertIn("identity", body["approved_files"])
+
+
+@mock_aws
+class TestCreateSession(unittest.TestCase):
+    """POST /interview"""
+
+    def setUp(self):
+        import importlib, db as db_module
+        self.ddb = boto3.resource("dynamodb", region_name="us-east-1")
+        _create_tables(self.ddb)
+        importlib.reload(db_module)
+
+    def _call(self):
+        from api.app import handler
+        result = handler(_make_event("POST", "/interview"), MagicMock())
+        return result["statusCode"], json.loads(result["body"])
+
+    @patch("api.routers.interview.call_bedrock", return_value=_MOCK_QUESTION)
+    def test_returns_session_id_and_message(self, _mock):
+        status, body = self._call()
+        self.assertEqual(status, 200)
+        self.assertIn("session_id", body)
+        self.assertIn("message", body)
+        self.assertEqual(body["questions_remaining"], 20)
+
+    @patch("api.routers.interview.call_bedrock", return_value=_MOCK_QUESTION)
+    def test_persists_session_to_dynamodb(self, _mock):
+        _, body = self._call()
+        session_id = body["session_id"]
+        item = self.ddb.Table("interview-sessions").get_item(Key={"session_id": session_id})["Item"]
+        self.assertEqual(item["phase"], "interviewing")
+        self.assertEqual(item["questions_asked"], 0)
+        self.assertEqual(len(item["history"]), 2)
+
+    @patch("api.routers.interview.call_bedrock", return_value=_MOCK_QUESTION)
+    def test_sets_ttl(self, _mock):
+        _, body = self._call()
+        item = self.ddb.Table("interview-sessions").get_item(Key={"session_id": body["session_id"]})["Item"]
+        self.assertGreater(item["ttl"], int(time.time()))
+
+    @patch("api.routers.interview.call_bedrock", return_value=_MOCK_QUESTION)
+    def test_bedrock_called_with_begin_message(self, mock_bedrock):
+        self._call()
+        args = mock_bedrock.call_args
+        messages = args[0][1]
+        self.assertEqual(messages[0]["content"], "Please begin the interview.")
+
+
+@mock_aws
+class TestRespond(unittest.TestCase):
+    """POST /interview/<session_id>/respond"""
+
+    def setUp(self):
+        import importlib, db as db_module
+        self.ddb = boto3.resource("dynamodb", region_name="us-east-1")
+        _create_tables(self.ddb)
+        importlib.reload(db_module)
+
+    def _call(self, session_id, text="I am a software engineer."):
+        from api.app import handler
+        result = handler(_make_event("POST", f"/interview/{session_id}/respond", body={"text": text}), MagicMock())
+        return result["statusCode"], json.loads(result["body"])
+
+    @patch("api.routers.interview.call_bedrock", return_value={**_MOCK_QUESTION, "sections_touched": ["identity"]})
+    def test_happy_path(self, _mock):
+        sid = _seed_interview_session(self.ddb)
+        status, body = self._call(sid)
+        self.assertEqual(status, 200)
+        self.assertIn("message", body)
+        self.assertEqual(body["questions_remaining"], 19)
+        self.assertEqual(body["phase"], "interviewing")
+
+    @patch("api.routers.interview.call_bedrock", return_value={**_MOCK_QUESTION, "sections_touched": ["identity"]})
+    def test_updates_section_density(self, _mock):
+        sid = _seed_interview_session(self.ddb)
+        self._call(sid)
+        item = self.ddb.Table("interview-sessions").get_item(Key={"session_id": sid})["Item"]
+        self.assertEqual(item["section_density"]["identity"], 1)
+
+    def test_empty_text_returns_400(self):
+        sid = _seed_interview_session(self.ddb)
+        status, _ = self._call(sid, text="")
+        self.assertEqual(status, 400)
+
+    def test_wrong_phase_returns_400(self):
+        sid = _seed_interview_session(self.ddb, phase="reviewing")
+        status, _ = self._call(sid)
+        self.assertEqual(status, 400)
+
+    @patch("api.routers.interview.call_bedrock")
+    def test_phase_transition_at_last_question(self, mock_bedrock):
+        # First call = next question, subsequent calls = draft generation (one per section)
+        mock_bedrock.side_effect = [_MOCK_QUESTION] + [_MOCK_DRAFT] * len(__import__("models").SECTIONS)
+        sid = _seed_interview_session(self.ddb, questions_asked=19, questions_total=20)
+        status, body = self._call(sid)
+        self.assertEqual(status, 200)
+        self.assertEqual(body["phase"], "reviewing")
+        item = self.ddb.Table("interview-sessions").get_item(Key={"session_id": sid})["Item"]
+        self.assertEqual(item["phase"], "reviewing")
+        self.assertTrue(len(item.get("draft_files", {})) > 0)
+
+
+@mock_aws
+class TestSkipQuestion(unittest.TestCase):
+    """POST /interview/<session_id>/skip-question"""
+
+    def setUp(self):
+        import importlib, db as db_module
+        self.ddb = boto3.resource("dynamodb", region_name="us-east-1")
+        _create_tables(self.ddb)
+        importlib.reload(db_module)
+
+    def _call(self, session_id):
+        from api.app import handler
+        result = handler(_make_event("POST", f"/interview/{session_id}/skip-question"), MagicMock())
+        return result["statusCode"], json.loads(result["body"])
+
+    @patch("api.routers.interview.call_bedrock", return_value={"message": "Different question.", "heckle": None})
+    def test_adds_skip_marker_to_history(self, _mock):
+        sid = _seed_interview_session(self.ddb)
+        self._call(sid)
+        item = self.ddb.Table("interview-sessions").get_item(Key={"session_id": sid})["Item"]
+        contents = [h["content"] for h in item["history"]]
+        self.assertTrue(any("[SKIP:" in c for c in contents))
+
+    @patch("api.routers.interview.call_bedrock", return_value={"message": "Different question.", "heckle": None})
+    def test_returns_new_question(self, _mock):
+        sid = _seed_interview_session(self.ddb)
+        status, body = self._call(sid)
+        self.assertEqual(status, 200)
+        self.assertEqual(body["message"], "Different question.")
+
+    def test_wrong_phase_returns_400(self):
+        sid = _seed_interview_session(self.ddb, phase="reviewing")
+        status, _ = self._call(sid)
+        self.assertEqual(status, 400)
+
+
+@mock_aws
+class TestSkipSection(unittest.TestCase):
+    """POST /interview/<session_id>/skip-section"""
+
+    def setUp(self):
+        import importlib, db as db_module
+        self.ddb = boto3.resource("dynamodb", region_name="us-east-1")
+        _create_tables(self.ddb)
+        importlib.reload(db_module)
+
+    def _call(self, session_id, section):
+        from api.app import handler
+        result = handler(_make_event("POST", f"/interview/{session_id}/skip-section", body={"section": section}), MagicMock())
+        return result["statusCode"], json.loads(result["body"])
+
+    @patch("api.routers.interview.call_bedrock", return_value=_MOCK_QUESTION)
+    def test_valid_section_added_to_skipped(self, _mock):
+        sid = _seed_interview_session(self.ddb)
+        status, body = self._call(sid, "identity")
+        self.assertEqual(status, 200)
+        self.assertIn("identity", body["skipped_sections"])
+
+    @patch("api.routers.interview.call_bedrock", return_value=_MOCK_QUESTION)
+    def test_skipping_already_skipped_is_idempotent(self, _mock):
+        sid = _seed_interview_session(self.ddb, skipped_sections=["identity"])
+        self._call(sid, "identity")
+        item = self.ddb.Table("interview-sessions").get_item(Key={"session_id": sid})["Item"]
+        self.assertEqual(item["skipped_sections"].count("identity"), 1)
+
+    def test_invalid_section_returns_400(self):
+        sid = _seed_interview_session(self.ddb)
+        status, _ = self._call(sid, "not-a-section")
+        self.assertEqual(status, 400)
+
+
+@mock_aws
+class TestReactivateSection(unittest.TestCase):
+    """POST /interview/<session_id>/reactivate-section — no Bedrock needed"""
+
+    def setUp(self):
+        import importlib, db as db_module
+        self.ddb = boto3.resource("dynamodb", region_name="us-east-1")
+        _create_tables(self.ddb)
+        importlib.reload(db_module)
+
+    def _call(self, session_id, section):
+        from api.app import handler
+        result = handler(_make_event("POST", f"/interview/{session_id}/reactivate-section", body={"section": section}), MagicMock())
+        return result["statusCode"], json.loads(result["body"])
+
+    def test_removes_section_from_skipped(self):
+        sid = _seed_interview_session(self.ddb, skipped_sections=["identity", "goals-and-priorities"])
+        status, body = self._call(sid, "identity")
+        self.assertEqual(status, 200)
+        self.assertNotIn("identity", body["skipped_sections"])
+        self.assertIn("goals-and-priorities", body["skipped_sections"])
+
+    def test_reactivating_non_skipped_is_noop(self):
+        sid = _seed_interview_session(self.ddb, skipped_sections=["identity"])
+        status, body = self._call(sid, "goals-and-priorities")
+        self.assertEqual(status, 200)
+        self.assertEqual(body["skipped_sections"], ["identity"])
+
+    def test_invalid_section_returns_400(self):
+        sid = _seed_interview_session(self.ddb)
+        status, _ = self._call(sid, "not-real")
+        self.assertEqual(status, 400)
+
+
+@mock_aws
+class TestPauseSession(unittest.TestCase):
+    """POST /interview/<session_id>/pause"""
+
+    def setUp(self):
+        import importlib, db as db_module
+        self.ddb = boto3.resource("dynamodb", region_name="us-east-1")
+        _create_tables(self.ddb)
+        importlib.reload(db_module)
+
+    def _call(self, session_id):
+        from api.app import handler
+        result = handler(_make_event("POST", f"/interview/{session_id}/pause"), MagicMock())
+        return result["statusCode"], json.loads(result["body"])
+
+    @patch("api.routers.interview.call_bedrock", return_value=_MOCK_DRAFT)
+    def test_transitions_to_reviewing(self, _mock):
+        sid = _seed_interview_session(self.ddb)
+        status, body = self._call(sid)
+        self.assertEqual(status, 200)
+        self.assertEqual(body["phase"], "reviewing")
+
+    @patch("api.routers.interview.call_bedrock", return_value=_MOCK_DRAFT)
+    def test_draft_files_populated(self, _mock):
+        sid = _seed_interview_session(self.ddb)
+        self._call(sid)
+        item = self.ddb.Table("interview-sessions").get_item(Key={"session_id": sid})["Item"]
+        self.assertEqual(item["phase"], "reviewing")
+        self.assertGreater(len(item.get("draft_files", {})), 0)
+
+    def test_already_reviewing_returns_400(self):
+        sid = _seed_interview_session(self.ddb, phase="reviewing")
+        status, _ = self._call(sid)
+        self.assertEqual(status, 400)
+
+
+@mock_aws
+class TestMoreQuestions(unittest.TestCase):
+    """POST /interview/<session_id>/more"""
+
+    def setUp(self):
+        import importlib, db as db_module
+        self.ddb = boto3.resource("dynamodb", region_name="us-east-1")
+        _create_tables(self.ddb)
+        importlib.reload(db_module)
+
+    def _call(self, session_id, count=5):
+        from api.app import handler
+        result = handler(_make_event("POST", f"/interview/{session_id}/more", body={"count": count}), MagicMock())
+        return result["statusCode"], json.loads(result["body"])
+
+    @patch("api.routers.interview.call_bedrock", return_value=_MOCK_QUESTION)
+    def test_increases_total_and_returns_to_interviewing(self, _mock):
+        sid = _seed_interview_session(self.ddb, phase="reviewing", questions_asked=20, questions_total=20)
+        status, body = self._call(sid, count=5)
+        self.assertEqual(status, 200)
+        self.assertEqual(body["phase"], "interviewing")
+        self.assertEqual(body["questions_remaining"], 5)
+
+    @patch("api.routers.interview.call_bedrock", return_value=_MOCK_QUESTION)
+    def test_clears_draft_files(self, _mock):
+        sid = _seed_interview_session(self.ddb, phase="reviewing",
+                                      draft_files={"identity": "old draft"})
+        self._call(sid, count=5)
+        item = self.ddb.Table("interview-sessions").get_item(Key={"session_id": sid})["Item"]
+        self.assertEqual(item["draft_files"], {})
+
+    def test_count_too_large_returns_400(self):
+        sid = _seed_interview_session(self.ddb, phase="reviewing")
+        status, _ = self._call(sid, count=51)
+        self.assertEqual(status, 400)
+
+    def test_count_too_small_returns_400(self):
+        sid = _seed_interview_session(self.ddb, phase="reviewing")
+        status, _ = self._call(sid, count=0)
+        self.assertEqual(status, 400)
+
+    def test_wrong_phase_returns_400(self):
+        sid = _seed_interview_session(self.ddb, phase="interviewing")
+        status, _ = self._call(sid, count=5)
+        self.assertEqual(status, 400)
+
+
+@mock_aws
+class TestReviewFeedback(unittest.TestCase):
+    """POST /interview/<session_id>/review/feedback"""
+
+    def setUp(self):
+        import importlib, db as db_module
+        self.ddb = boto3.resource("dynamodb", region_name="us-east-1")
+        _create_tables(self.ddb)
+        importlib.reload(db_module)
+
+    def _call(self, session_id, file="identity", text="Make it shorter."):
+        from api.app import handler
+        result = handler(_make_event("POST", f"/interview/{session_id}/review/feedback",
+                                     body={"file": file, "text": text}), MagicMock())
+        return result["statusCode"], json.loads(result["body"])
+
+    @patch("api.routers.interview.call_bedrock", return_value={"draft": "Revised draft content."})
+    def test_updates_draft(self, _mock):
+        sid = _seed_interview_session(self.ddb, phase="reviewing",
+                                      draft_files={"identity": "Original draft."})
+        status, body = self._call(sid)
+        self.assertEqual(status, 200)
+        self.assertEqual(body["draft"], "Revised draft content.")
+        item = self.ddb.Table("interview-sessions").get_item(Key={"session_id": sid})["Item"]
+        self.assertEqual(item["draft_files"]["identity"], "Revised draft content.")
+
+    def test_empty_feedback_returns_400(self):
+        sid = _seed_interview_session(self.ddb, phase="reviewing",
+                                      draft_files={"identity": "Draft."})
+        status, _ = self._call(sid, text="")
+        self.assertEqual(status, 400)
+
+    def test_invalid_file_returns_400(self):
+        sid = _seed_interview_session(self.ddb, phase="reviewing")
+        status, _ = self._call(sid, file="not-real")
+        self.assertEqual(status, 400)
+
+    def test_wrong_phase_returns_400(self):
+        sid = _seed_interview_session(self.ddb, phase="interviewing")
+        status, _ = self._call(sid)
+        self.assertEqual(status, 400)
+
+
+@mock_aws
+class TestAdminAuth(unittest.TestCase):
+    """POST /admin/login and /admin/verify"""
+
+    def setUp(self):
+        import importlib, db as db_module
+        self.ddb = boto3.resource("dynamodb", region_name="us-east-1")
+        _create_tables(self.ddb)
+        importlib.reload(db_module)
+
+    def _login(self, email):
+        from api.app import handler
+        result = handler(_make_event("POST", "/admin/login", body={"email": email}), MagicMock())
+        return result["statusCode"], json.loads(result["body"])
+
+    def _verify(self, token):
+        from api.app import handler
+        result = handler(_make_event("POST", "/admin/verify", body={"token": token}), MagicMock())
+        return result["statusCode"], json.loads(result["body"])
+
+    def _seed_token(self, email="admin@example.com", expired=False):
+        token = str(uuid.uuid4())
+        ttl = int(time.time()) + (3600 if not expired else -1)
+        self.ddb.Table("admin-tokens").put_item(Item={"token_id": token, "email": email, "ttl": ttl})
+        return token
+
+    @patch("api.routers.auth._ses")
+    @patch.dict(os.environ, {"ADMIN_EMAILS": "admin@example.com"})
+    def test_known_email_returns_ok_and_stores_token(self, _mock_ses):
+        import importlib
+        import api.routers.auth as auth_module
+        importlib.reload(auth_module)
+        status, body = self._login("admin@example.com")
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        items = self.ddb.Table("admin-tokens").scan()["Items"]
+        self.assertTrue(any(i["email"] == "admin@example.com" for i in items))
+
+    def test_unknown_email_still_returns_ok(self):
+        status, body = self._login("unknown@example.com")
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+
+    def test_verify_valid_token_returns_email(self):
+        token = self._seed_token()
+        status, body = self._verify(token)
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["email"], "admin@example.com")
+
+    def test_verify_consumes_token(self):
+        token = self._seed_token()
+        self._verify(token)
+        _, body = self._verify(token)
+        self.assertFalse(body["ok"])
+
+    def test_verify_expired_token_returns_false(self):
+        token = self._seed_token(expired=True)
+        _, body = self._verify(token)
+        self.assertFalse(body["ok"])
+
+    def test_verify_nonexistent_token_returns_false(self):
+        _, body = self._verify(str(uuid.uuid4()))
+        self.assertFalse(body["ok"])
+
+
 if __name__ == "__main__":
     unittest.main()

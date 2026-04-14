@@ -197,8 +197,8 @@ def respond(session_id: str):
             density[s] = 1
     session["section_density"] = density
 
-    questions_asked = session.get("questions_asked", 0) + 1
-    questions_total = session.get("questions_total", _DEFAULT_QUESTIONS)
+    questions_asked = int(session.get("questions_asked", 0)) + 1
+    questions_total = int(session.get("questions_total", _DEFAULT_QUESTIONS))
     questions_remaining = questions_total - questions_asked
 
     # Append interviewer question to history
@@ -239,7 +239,7 @@ def skip_question(session_id: str):
     session["history"] = history
     _save_session(session)
 
-    questions_remaining = session.get("questions_total", _DEFAULT_QUESTIONS) - session.get("questions_asked", 0)
+    questions_remaining = int(session.get("questions_total", _DEFAULT_QUESTIONS)) - int(session.get("questions_asked", 0))
     return {
         "message": new_question,
         "heckle": heckle,
@@ -308,7 +308,7 @@ def pause_session(session_id: str):
 @router.post("/interview/<session_id>/more")
 def more_questions(session_id: str):
     body = router.current_event.json_body or {}
-    count = int(body.get("count") or 10)
+    count = int(body.get("count") if body.get("count") is not None else 10)
     if count < 1 or count > 50:
         raise BadRequestError("count must be between 1 and 50")
 
@@ -330,7 +330,7 @@ def more_questions(session_id: str):
     session["history"] = history
     _save_session(session)
 
-    questions_remaining = session["questions_total"] - session.get("questions_asked", 0)
+    questions_remaining = int(session["questions_total"]) - int(session.get("questions_asked", 0))
     return {
         "message": new_question,
         "heckle": heckle,
@@ -395,12 +395,14 @@ def review_feedback(session_id: str):
 @router.get("/interview/<session_id>")
 def get_session(session_id: str):
     session = _get_session(session_id)
+    q_total = int(session.get("questions_total", _DEFAULT_QUESTIONS))
+    q_asked = int(session.get("questions_asked", 0))
     return {
         "session_id": session["session_id"],
         "phase": session.get("phase", "interviewing"),
-        "questions_asked": session.get("questions_asked", 0),
-        "questions_total": session.get("questions_total", _DEFAULT_QUESTIONS),
-        "questions_remaining": max(0, session.get("questions_total", _DEFAULT_QUESTIONS) - session.get("questions_asked", 0)),
+        "questions_asked": q_asked,
+        "questions_total": q_total,
+        "questions_remaining": max(0, q_total - q_asked),
         "section_density": session.get("section_density", {}),
         "skipped_sections": session.get("skipped_sections", []),
         "approved_files": list(session.get("approved_files", {}).keys()),
