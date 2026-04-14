@@ -33,7 +33,24 @@ jobs:
         run: python -m pipenv install --dev
 
       - name: Run tests
-        run: python -m pipenv run python -m pytest tests/ -v
+        run: python -m pipenv run python -m pytest tests/ -v --cov=src --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=60
+
+      - name: Run behave scenarios
+        run: python -m pipenv run behave features/ --no-capture
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: api/coverage.xml
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: ./.github/actions/notify-slack
+        with:
+          slackmail_url: ${{ secrets.SLACKMAIL_URL }}
+          slackmail_api_key: ${{ secrets.SLACKMAIL_API_KEY }}
 
   validate-template:
     name: SAM validate
@@ -58,6 +75,13 @@ jobs:
 
       - name: SAM validate
         run: sam validate --lint
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: ./.github/actions/notify-slack
+        with:
+          slackmail_url: ${{ secrets.SLACKMAIL_URL }}
+          slackmail_api_key: ${{ secrets.SLACKMAIL_API_KEY }}
 
   build-ui:
     name: UI TypeScript build
@@ -85,3 +109,10 @@ jobs:
           VITE_CARTESIA_API_KEY: stub
           VITE_CARTESIA_VOICE_ID: stub
         run: npm run build
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: ./.github/actions/notify-slack
+        with:
+          slackmail_url: ${{ secrets.SLACKMAIL_URL }}
+          slackmail_api_key: ${{ secrets.SLACKMAIL_API_KEY }}

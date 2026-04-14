@@ -11,7 +11,11 @@ requests = "*"
 
 [dev-packages]
 pytest = "*"
+pytest-cov = "*"
+pytest-retry = "*"
 moto = {extras = ["dynamodb"], version = "*"}
+behave = "*"
+freezegun = "*"
 
 [requires]
 python_version = "3.12"

@@ -38,7 +38,17 @@ jobs:
         run: python -m pipenv install --dev
 
       - name: Run tests
-        run: python -m pipenv run python -m pytest tests/ -v
+        run: python -m pipenv run python -m pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=60
+
+      - name: Run behave scenarios
+        run: python -m pipenv run behave features/ --no-capture
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: ./.github/actions/notify-slack
+        with:
+          slackmail_url: ${{ secrets.SLACKMAIL_URL }}
+          slackmail_api_key: ${{ secrets.SLACKMAIL_API_KEY }}
 
   deploy:
     name: SAM deploy
@@ -123,13 +133,25 @@ jobs:
       - name: Install dependencies
         run: python -m pipenv install --dev
 
-      - name: Smoke tests (with retry)
+      - name: Smoke tests
         run: |
-          for i in 1 2 3 4 5; do
-            sleep 15
-            python -m pipenv run python ../scripts/smoke_test.py && exit 0
-            echo "Attempt $i failed, retrying..."
-          done
-          exit 1
+          python -m pipenv run python -m pytest ../scripts/smoke_tests.py \
+            -v -m smoke \
+            --junitxml=../smoke-results.xml
         env:
           SMOKE_BASE_URL: https://api.whoisme.io
+          SMOKE_TEST_USERNAME: ${{ secrets.SMOKE_TEST_USERNAME }}
+
+      - name: Upload smoke test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-test-results
+          path: smoke-results.xml
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: ./.github/actions/notify-slack
+        with:
+          slackmail_url: ${{ secrets.SLACKMAIL_URL }}
+          slackmail_api_key: ${{ secrets.SLACKMAIL_API_KEY }}
