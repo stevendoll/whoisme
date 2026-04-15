@@ -79,6 +79,8 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
   const [boxState, setBoxState] = useState<BoxState>('loading')
   const [ttsState, setTtsState] = useState<'idle' | 'connecting' | 'playing'>('idle')
 
+  const [questionsRemaining, setQuestionsRemaining] = useState<number | null>(null)
+
   const inputRef         = useRef<HTMLTextAreaElement>(null)
   const audioCtxRef      = useRef<AudioContext | null>(null)
   const analyserRef      = useRef<AnalyserNode | null>(null)
@@ -224,6 +226,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
     if (res) {
       onSectionsTouched?.(res.sectionsTouched)
       onQuestionsUpdate?.(res.questionsRemaining)
+      setQuestionsRemaining(res.questionsRemaining)
       if (res.phase !== 'interviewing') {
         onPhaseChange?.(res.phase, res.draftFiles)
       }
@@ -264,6 +267,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       setSessionId(id)
       onSessionCreated?.(id)
       onQuestionsUpdate?.(result.questionsRemaining)
+      setQuestionsRemaining(result.questionsRemaining)
       if (result.heckle) { onHeckle?.(result.heckle) }
       void handleInterviewerMessageRef.current(result.message, result.heckle ?? null)
     }).catch(err => {
@@ -284,6 +288,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       setSessionId(id)
       onSessionCreated?.(id)
       onQuestionsUpdate?.(result.questionsRemaining)
+      setQuestionsRemaining(result.questionsRemaining)
       if (result.heckle) { onHeckle?.(result.heckle) }
       void handleInterviewerMessageRef.current(result.message, result.heckle ?? null)
     }).catch(err => {
@@ -339,6 +344,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       const res = await skipQuestion(sid)
       setStatus('')
       onQuestionsUpdate?.(res.questionsRemaining)
+      setQuestionsRemaining(res.questionsRemaining)
       await handleInterviewerMessage(res.message, res.heckle)
     } catch (err) {
       const msg = report('skip_failed', err)
@@ -387,6 +393,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
     resumeWithQuestion(message, heckle, questionsRemaining) {
       setPhase('interviewing')
       onQuestionsUpdateRef.current?.(questionsRemaining)
+      setQuestionsRemaining(questionsRemaining)
       void handleInterviewerMessageRef.current(message, heckle)
     },
   }))
@@ -433,6 +440,17 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
               {latencyMs !== null && <span className="voicebox-latency">{latencyMs}ms</span>}
             </span>
             <div className="voicebox-toolbar-right">
+              <label className="wise-guy-toggle" title={wiseGuyEnabled ? 'Silence the wise guy' : 'Let the wise guy speak'}>
+                <span className="wise-guy-label">wise guy</span>
+                <span className={`wise-guy-switch${wiseGuyEnabled ? ' wise-guy-switch--on' : ''}`}
+                  role="switch"
+                  aria-checked={wiseGuyEnabled}
+                  onClick={() => {
+                    wiseGuyEnabledRef.current = !wiseGuyEnabledRef.current
+                    setWiseGuyEnabled(v => !v)
+                  }}
+                />
+              </label>
               <button
                 className="voicebox-reset"
                 onClick={handleSkipQuestion}
@@ -442,26 +460,17 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
               >
                 skip
               </button>
-              <button
-                className="voicebox-reset"
-                onClick={handlePause}
-                disabled={isBusy}
-                title="End the interview and generate your profile"
-                aria-label="Generate profile"
-              >
-                generate
-              </button>
-              <button
-                className="voicebox-reset"
-                onClick={() => {
-                  wiseGuyEnabledRef.current = !wiseGuyEnabledRef.current
-                  setWiseGuyEnabled(v => !v)
-                }}
-                title={wiseGuyEnabled ? 'Silence the wise guy' : 'Let the wise guy speak'}
-                aria-label="Toggle wise guy"
-              >
-                {wiseGuyEnabled ? 'wise guy: on' : 'wise guy: off'}
-              </button>
+              {questionsRemaining !== null && questionsRemaining <= 10 && (
+                <button
+                  className="voicebox-reset"
+                  onClick={handlePause}
+                  disabled={isBusy}
+                  title="End the interview and generate your profile"
+                  aria-label="End interview"
+                >
+                  end interview
+                </button>
+              )}
               <MicButton
                 getBaseText={() => inputText.trim()}
                 onTranscript={t => setInputText(t)}
