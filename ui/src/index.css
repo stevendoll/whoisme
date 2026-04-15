@@ -842,15 +842,13 @@ footer a {
   nav ul { display: none; }
 }
 
-/* Hide native cursor everywhere on pointer devices (custom cursor handles it) */
-@media (hover: hover) and (pointer: fine) {
-  *, *::before, *::after { cursor: none !important; }
-}
+/* Hide native cursor everywhere (custom cursor handles it) */
+html, html * { cursor: none !important; }
 
 /* Touch devices: restore default cursor, hide custom cursor */
 @media (hover: none) and (pointer: coarse) {
-  body { cursor: auto; }
-  .mic-btn, .play-btn { cursor: pointer; }
+  html, html * { cursor: auto !important; }
+  .mic-btn, .play-btn { cursor: pointer !important; }
 }
 
 /* Tablet — ≤ 900px */
