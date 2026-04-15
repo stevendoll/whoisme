@@ -517,20 +517,20 @@ footer a {
 /* Peanut gallery — left-aligned, subtle italic */
 .chat-bubble--heckle {
   align-self: flex-start;
-  background: rgba(240,242,255, 0.04);
-  border: 1px solid rgba(240,242,255, 0.08);
-  color: rgba(240,242,255, 0.45);
+  background: rgba(255,200,50, 0.06);
+  border: 1px solid rgba(255,200,50, 0.2);
+  color: rgba(240,242,255, 0.75);
   font-style: italic;
   font-size: 0.88rem;
   border-bottom-left-radius: 4px;
 }
 .chat-bubble-heckle-label {
   display: block;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-style: normal;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(240,242,255, 0.3);
+  color: rgba(255,200,50, 0.7);
   margin-bottom: 4px;
 }
 
@@ -1681,4 +1681,169 @@ footer a {
 
 @media (max-width: 600px) {
   .public-profile-body { padding: 32px 16px 60px; }
+}
+
+/* ─── Progress steps nav ────────────────────────────────────── */
+
+.progress-steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.progress-step-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.progress-connector {
+  width: 28px;
+  height: 1px;
+  background: rgba(240,242,255,0.15);
+  margin: 0 4px;
+}
+
+.progress-step { display: flex; align-items: center; }
+
+.progress-step-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress-step-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.progress-step-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.progress-step-sub {
+  font-size: 0.55rem;
+  opacity: 0.7;
+}
+
+.progress-step--active { color: var(--accent); }
+.progress-step--done   { color: rgba(240,242,255,0.55); }
+.progress-step--future { color: rgba(240,242,255,0.2); }
+
+.progress-step-link {
+  color: inherit;
+  text-decoration: none;
+}
+.progress-step-link:hover .progress-step-dot { opacity: 0.7; }
+
+/* ─── Interview header actions (start over, etc.) ─────────── */
+
+.interview-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 80px;
+  justify-content: flex-end;
+}
+
+.interview-start-over {
+  font-size: 0.65rem;
+  padding: 4px 10px;
+  opacity: 0.5;
+}
+.interview-start-over:hover { opacity: 1; }
+
+/* ─── Review page explainer ─────────────────────────────────── */
+
+.interview-review-explainer {
+  font-size: 0.85rem;
+  color: rgba(240,242,255,0.6);
+  margin: 0 0 20px;
+  line-height: 1.6;
+}
+
+.interview-review-subtitle {
+  font-size: 0.75rem;
+  color: rgba(240,242,255,0.35);
+  margin: 4px 0 0;
+  font-family: 'DM Mono', monospace;
+}
+
+.review-recovery-banner {
+  background: rgba(255,200,50,0.06);
+  border: 1px solid rgba(255,200,50,0.2);
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-size: 0.8rem;
+  color: rgba(240,242,255,0.6);
+  margin-top: 16px;
+}
+
+.review-recovery-banner code {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--accent);
+  background: rgba(27,196,204,0.08);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+/* ─── Landing page sign-in ──────────────────────────────────── */
+
+.landing-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 32px 0 20px;
+  color: rgba(240,242,255,0.2);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.landing-divider::before,
+.landing-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.landing-returning {
+  font-size: 0.82rem;
+  color: rgba(240,242,255,0.4);
+  margin: 0 0 12px;
+}
+
+.landing-signin-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.landing-signin-row .interview-text-input {
+  max-width: 220px;
+}
+
+.landing-auth-sent {
+  font-size: 0.82rem;
+  color: var(--accent);
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .progress-steps { font-size: 0.55rem; }
+  .progress-connector { width: 16px; }
+  .landing-signin-row { flex-direction: column; align-items: center; }
+  .landing-signin-row .interview-text-input { max-width: 100%; }
 }

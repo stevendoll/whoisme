@@ -217,6 +217,7 @@ def respond(session_id: str):
         "heckle": heckle,
         "questions_remaining": max(0, questions_remaining),
         "phase": session["phase"],
+        "draft_files": session.get("draft_files") if session["phase"] == "reviewing" else None,
     }
 
 

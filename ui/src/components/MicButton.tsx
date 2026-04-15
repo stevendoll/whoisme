@@ -11,24 +11,42 @@ interface Props {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySpeechRecognition = any
 
+const SILENCE_TIMEOUT_MS = 5000
+
 export default function MicButton({ onTranscript, onEnd, onError, disabled, getBaseText }: Props) {
   const [recording, setRecording] = useState(false)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null)
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const SR: AnySpeechRecognition = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition
   if (!SR) return null
 
+  const clearSilenceTimer = () => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current)
+      silenceTimerRef.current = null
+    }
+  }
+
+  const resetSilenceTimer = () => {
+    clearSilenceTimer()
+    silenceTimerRef.current = setTimeout(() => {
+      recognitionRef.current?.stop()
+    }, SILENCE_TIMEOUT_MS)
+  }
+
   const toggle = () => {
     if (recording) {
+      clearSilenceTimer()
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       recognitionRef.current?.stop()
       return
     }
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     const rec = new SR()
-    rec.continuous = false
+    rec.continuous = true
     rec.interimResults = true
     rec.lang = 'en-US'
     recognitionRef.current = rec
@@ -37,6 +55,7 @@ export default function MicButton({ onTranscript, onEnd, onError, disabled, getB
     let finalTranscript = ''
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onresult = (e: any) => {
+      resetSilenceTimer()
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
       const transcript = Array.from(e.results as ArrayLike<SpeechRecognitionResult>)
         .map(r => r[0].transcript).join('')
@@ -44,17 +63,20 @@ export default function MicButton({ onTranscript, onEnd, onError, disabled, getB
       onTranscript(baseText ? `${baseText} ${transcript}` : transcript)
     }
     rec.onend = () => {
+      clearSilenceTimer()
       setRecording(false)
       if (finalTranscript) onTranscript(baseText ? `${baseText} ${finalTranscript}` : finalTranscript)
       onEnd()
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onerror = (e: any) => {
+      clearSilenceTimer()
       setRecording(false)
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       onError(`Mic error: ${e.error}`)
     }
     setRecording(true)
+    resetSilenceTimer()
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     rec.start()
   }
@@ -63,7 +85,7 @@ export default function MicButton({ onTranscript, onEnd, onError, disabled, getB
     <button
       onClick={toggle}
       disabled={disabled}
-      title={recording ? 'Listening… click to stop' : 'Speak your concern'}
+      title={recording ? 'Listening… click to stop' : 'Speak your answer'}
       className={`mic-btn${recording ? ' recording' : ''}`}
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">

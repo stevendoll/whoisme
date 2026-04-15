@@ -5,6 +5,7 @@ import AdminLoginPage from './pages/AdminLoginPage'
 import InterviewPage from './pages/InterviewPage'
 import LandingPage from './pages/LandingPage'
 import ProfilePage from './pages/ProfilePage'
+import ReviewPage from './pages/ReviewPage'
 import PublicProfilePage from './pages/PublicProfilePage'
 import { postAdminVerify, verifyAuth, postError } from './lib/api'
 
@@ -97,6 +98,7 @@ export default function App() {
   const page = basePath === '#/admin' && adminAuthed ? 'admin'
              : basePath === '#/admin'                ? 'admin-login'
              : basePath === '#/interview'            ? 'interview'
+             : basePath === '#/review'               ? 'review'
              : basePath === '#/profile'              ? 'profile'
              : 'landing'
 
@@ -107,6 +109,7 @@ export default function App() {
       {page === 'admin'       ? <AdminPage />
      : page === 'admin-login' ? <AdminLoginPage />
      : page === 'interview'   ? <InterviewPage />
+     : page === 'review'      ? <ReviewPage />
      : page === 'profile'     ? <ProfilePage />
      : <LandingPage />}
     </ErrorBoundary>
