@@ -19,6 +19,10 @@ const INTERVIEWER_VOICES = [
   'cbaf8084-f009-4838-a096-07ee2e6612b1', // Maya
 ]
 
+// Wise Guy voice — distinct character voice
+const WISE_GUY_VOICE_ID: string = (import.meta.env.VITE_WISE_GUY_VOICE_ID as string)?.trim()
+  || 'a0e99841-438c-4a64-b679-ae501e7d6091' // Barbershop Man
+
 function stripSsml(text: string): string {
   return text
     .replace(/<emotion[^>]*\/?>/gi, '')
@@ -85,6 +89,8 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
   const ttsErrorReported = useRef(false)
   const voiceId          = useRef(pickInterviewerVoice())
   const sessionIdRef     = useRef<string | null>(null)
+  const wiseGuyEnabledRef = useRef(true)
+  const [wiseGuyEnabled, setWiseGuyEnabled] = useState(true)
 
   // Keep ref in sync so callbacks have stable access
   useEffect(() => { sessionIdRef.current = sessionId }, [sessionId])
@@ -104,10 +110,11 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
     postError('tts_failure', message).catch(() => { /* best-effort */ })
   }, [])
 
-  const speakText = useCallback((text: string): Promise<void> => {
+  const speakText = useCallback((text: string, voiceOverride?: string): Promise<void> => {
     return new Promise(resolve => {
       const clean = stripSsml(text)
-      if (!CARTESIA_API_KEY || !voiceId.current || ttsDisabled.current) {
+      const activeVoice = voiceOverride ?? voiceId.current
+      if (!CARTESIA_API_KEY || !activeVoice || ttsDisabled.current) {
         setTtsState('playing'); setStatus('▶ Playing...'); setStatusType('playing')
         const ms = Math.max(800, clean.length * 45)
         setTimeout(() => { setTtsState('idle'); setStatus(''); setStatusType(''); resolve() }, ms)
@@ -165,7 +172,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
             context_id: crypto.randomUUID(),
             model_id: 'sonic-3',
             transcript: clean,
-            voice: { mode: 'id', id: voiceId.current },
+            voice: { mode: 'id', id: activeVoice },
             output_format: { container: 'raw', encoding: 'pcm_f32le', sample_rate: SAMPLE_RATE },
             continue: false,
           }))
@@ -205,19 +212,27 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
 
   const handleInterviewerMessage = useCallback(async (message: string, heckleText: string | null, res?: RespondResponse) => {
     addMessage('interviewer', message)
-    if (heckleText) {
-      addMessage('heckle', heckleText)
-      onHeckle?.(heckleText)
+
+    // Show wise guy on only 30% of questions, and only if enabled
+    const effectiveHeckle = (heckleText && wiseGuyEnabledRef.current && Math.random() < 0.3)
+      ? heckleText : null
+    if (effectiveHeckle) {
+      addMessage('heckle', effectiveHeckle)
+      onHeckle?.(effectiveHeckle)
     }
+
     if (res) {
       onSectionsTouched?.(res.sectionsTouched)
       onQuestionsUpdate?.(res.questionsRemaining)
       if (res.phase !== 'interviewing') {
-        onPhaseChange?.(res.phase)
+        onPhaseChange?.(res.phase, res.draftFiles)
       }
     }
     setBoxState('interviewer-speaking')
     await speakText(message)
+    if (effectiveHeckle) {
+      await speakText(effectiveHeckle, WISE_GUY_VOICE_ID)
+    }
     setBoxState('waiting')
     requestAnimationFrame(() => inputRef.current?.focus())
   }, [addMessage, speakText, onHeckle, onSectionsTouched, onQuestionsUpdate, onPhaseChange])
@@ -422,7 +437,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
                 className="voicebox-reset"
                 onClick={handleSkipQuestion}
                 disabled={isBusy}
-                title="Skip this question"
+                title="Skip this question and move to new topics"
                 aria-label="Skip question"
               >
                 skip
@@ -431,10 +446,21 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
                 className="voicebox-reset"
                 onClick={handlePause}
                 disabled={isBusy}
-                title="Review progress"
-                aria-label="Review progress"
+                title="End the interview and generate your profile"
+                aria-label="Generate profile"
               >
-                review progress
+                generate
+              </button>
+              <button
+                className="voicebox-reset"
+                onClick={() => {
+                  wiseGuyEnabledRef.current = !wiseGuyEnabledRef.current
+                  setWiseGuyEnabled(v => !v)
+                }}
+                title={wiseGuyEnabled ? 'Silence the wise guy' : 'Let the wise guy speak'}
+                aria-label="Toggle wise guy"
+              >
+                {wiseGuyEnabled ? 'wise guy: on' : 'wise guy: off'}
               </button>
               <MicButton
                 getBaseText={() => inputText.trim()}

@@ -22,6 +22,7 @@ export interface RespondResponse {
   heckle: string | null
   questionsRemaining: number
   phase: InterviewPhase
+  draftFiles?: Record<string, string>
 }
 
 export interface SkipQuestionResponse {

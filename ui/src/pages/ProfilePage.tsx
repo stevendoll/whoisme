@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getMe, updateVisibility, publishProfile } from '../lib/api'
 import type { UserProfile } from '../lib/types'
+import ProgressSteps from '../components/ProgressSteps'
 
 const SECTIONS = [
   'identity',
@@ -135,9 +136,7 @@ export default function ProfilePage() {
     <div className="profile-page">
       <header className="interview-header">
         <a href="#/" className="interview-logo"><img src="/assets/whoisme-banner.png" alt="WhoIsMe" /></a>
-        <div className="interview-progress">
-          <span className="interview-phase-label">{approvedCount}/{SECTIONS.length} approved</span>
-        </div>
+        <ProgressSteps currentStep="profile" />
       </header>
 
       <div className="profile-body">
@@ -163,7 +162,7 @@ export default function ProfilePage() {
                     {publishing ? 'Publishing…' : anyChangedSincePublish ? 'Republish (changes pending)' : 'Republish'}
                   </button>
                 )}
-                <a href="#/interview" className="btn-ghost">Edit files</a>
+                <a href="#/review" className="btn-ghost">Edit files</a>
               </div>
               {publishError && <p className="interview-error">{publishError}</p>}
             </div>
@@ -188,7 +187,7 @@ export default function ProfilePage() {
                     {publishing ? 'Publishing…' : 'Publish'}
                   </button>
                 )}
-                <a href="#/interview" className="btn-ghost">Edit files</a>
+                <a href="#/review" className="btn-ghost">Edit files</a>
               </div>
               {publishError && <p className="interview-error">{publishError}</p>}
               {!anyApproved && (

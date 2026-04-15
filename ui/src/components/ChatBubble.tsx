@@ -16,7 +16,7 @@ function stripTags(text: string): string {
 export default function ChatBubble({ role, text }: Props) {
   return (
     <div className={`chat-bubble chat-bubble--${role}`}>
-      {role === 'heckle' && <span className="chat-bubble-heckle-label">peanut gallery</span>}
+      {role === 'heckle' && <span className="chat-bubble-heckle-label">wise guy</span>}
       <p>{stripTags(text)}</p>
     </div>
   )
