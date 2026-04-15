@@ -1417,7 +1417,7 @@ footer a {
 }
 
 .landing-logo {
-  width: min(360px, 80vw);
+  width: min(420px, 85vw);
   height: auto;
   display: block;
   margin: 0 auto 24px;
