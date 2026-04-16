@@ -231,11 +231,12 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
         onPhaseChange?.(res.phase, res.draftFiles)
       }
     }
+    setInputText('')
     setBoxState('interviewer-speaking')
-    await speakText(message)
     if (effectiveHeckle) {
       await speakText(effectiveHeckle, WISE_GUY_VOICE_ID)
     }
+    await speakText(message)
     setBoxState('waiting')
     requestAnimationFrame(() => inputRef.current?.focus())
   }, [addMessage, speakText, onHeckle, onSectionsTouched, onQuestionsUpdate, onPhaseChange])

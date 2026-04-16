@@ -89,7 +89,7 @@ export default function InterviewPage() {
     return (
       <div className="interview-page">
         <header className="interview-header">
-          <a href="#/" className="interview-logo"><img src="/assets/whoisme-banner.png" alt="WhoIsMe" /></a>
+          <a href="#/" className="interview-logo"><img src="/assets/whoisme-logo.png" alt="WhoIsMe" /></a>
           <ProgressSteps currentStep="interview" />
         </header>
         <div className="interview-body">
@@ -110,7 +110,7 @@ export default function InterviewPage() {
   return (
     <div className="interview-page">
       <header className="interview-header">
-        <a href="#/" className="interview-logo"><img src="/assets/whoisme-banner.png" alt="WhoIsMe" /></a>
+        <a href="#/" className="interview-logo"><img src="/assets/whoisme-logo.png" alt="WhoIsMe" /></a>
         <ProgressSteps currentStep="interview" questionsLeft={questionsRemaining ?? undefined} />
         <div className="interview-header-actions">
           {sessionId && (
