@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import InterviewBox, { type InterviewBoxHandle } from '../components/InterviewBox'
 import SectionFill from '../components/SectionFill'
 import ProgressSteps from '../components/ProgressSteps'
+import AccountMenu from '../components/AccountMenu'
 import type { InterviewPhase } from '../lib/types'
 
 const SESSION_STORAGE_KEY = 'whoisme_session'
@@ -101,6 +102,7 @@ export default function InterviewPage() {
         <header className="interview-header">
           <a href="#/" className="interview-logo"><img src="/assets/whoisme-logo.png" alt="WhoIsMe" /></a>
           <ProgressSteps currentStep="interview" />
+          <AccountMenu />
         </header>
         <div className="interview-body">
           <main className="interview-main">
@@ -126,6 +128,7 @@ export default function InterviewPage() {
           {sessionId && (
             <button className="btn-ghost interview-start-over" onClick={handleStartOver}>start over</button>
           )}
+          <AccountMenu />
         </div>
       </header>
 

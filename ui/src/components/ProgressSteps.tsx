@@ -1,16 +1,15 @@
 interface Props {
-  currentStep: 'interview' | 'review' | 'profile' | 'publish'
+  currentStep: 'interview' | 'review' | 'publish'
   questionsLeft?: number
 }
 
 const STEPS: Array<{ key: string; label: string; href: string }> = [
   { key: 'interview', label: 'Interview', href: '#/interview' },
   { key: 'review',    label: 'Review',    href: '#/review' },
-  { key: 'profile',   label: 'Profile',   href: '#/profile' },
   { key: 'publish',   label: 'Publish',   href: '#/profile' },
 ]
 
-const ORDER = ['interview', 'review', 'profile', 'publish']
+const ORDER = ['interview', 'review', 'publish']
 
 export default function ProgressSteps({ currentStep, questionsLeft }: Props) {
   const currentIdx = ORDER.indexOf(currentStep)
