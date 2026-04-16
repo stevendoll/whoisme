@@ -100,8 +100,6 @@ export default function ReviewPage() {
     }
   }
 
-  const hasDrafts = Object.keys(draftFiles).length > 0
-
   if (generating) {
     return (
       <div className="interview-page">
