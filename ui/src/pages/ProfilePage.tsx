@@ -156,7 +156,7 @@ export default function ProfilePage() {
     return (
       <div className="profile-page">
         <header className="interview-header">
-          <a href="#/" className="interview-logo"><img src="/assets/whoisme-banner.png" alt="WhoIsMe" /></a>
+          <a href="#/" className="interview-logo"><img src="/assets/whoisme-logo.png" alt="WhoIsMe" /></a>
         </header>
         <div className="profile-loading">Loading…</div>
       </div>
@@ -166,7 +166,7 @@ export default function ProfilePage() {
   return (
     <div className="profile-page">
       <header className="interview-header">
-        <a href="#/" className="interview-logo"><img src="/assets/whoisme-banner.png" alt="WhoIsMe" /></a>
+        <a href="#/" className="interview-logo"><img src="/assets/whoisme-logo.png" alt="WhoIsMe" /></a>
         <ProgressSteps currentStep="profile" />
       </header>
 

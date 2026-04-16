@@ -43,7 +43,7 @@ export default function PublicProfilePage({ username }: { username: string }) {
   return (
     <div className="public-profile-page">
       <header className="interview-header">
-        <a href="/" className="interview-logo"><img src="/assets/whoisme-banner.png" alt="WhoIsMe" /></a>
+        <a href="/" className="interview-logo"><img src="/assets/whoisme-logo.png" alt="WhoIsMe" /></a>
         {profile && (
           <div className="interview-progress">
             <span className="interview-phase-label">{profile.username}</span>

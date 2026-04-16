@@ -89,7 +89,7 @@ export default function ReviewPage() {
   return (
     <div className="interview-page">
       <header className="interview-header">
-        <a href="#/" className="interview-logo"><img src="/assets/whoisme-banner.png" alt="WhoIsMe" /></a>
+        <a href="#/" className="interview-logo"><img src="/assets/whoisme-logo.png" alt="WhoIsMe" /></a>
         <ProgressSteps currentStep="review" />
         <div className="interview-header-actions">
           <button className="btn-ghost interview-start-over" onClick={handleStartOver}>start over</button>
