@@ -148,3 +148,11 @@ export function revokeBearerToken(): Promise<{ ok: boolean }> {
 export function importSession(sessionId: string): Promise<{ ok: boolean }> {
   return apiFetch('/users/me/import', { method: 'POST', body: JSON.stringify({ session_id: sessionId }) }, true)
 }
+
+export function unpublishProfile(): Promise<{ ok: boolean }> {
+  return apiFetch('/users/me/unpublish', { method: 'POST' }, true)
+}
+
+export function deleteAccount(): Promise<{ ok: boolean }> {
+  return apiFetch('/users/me', { method: 'DELETE' }, true)
+}
