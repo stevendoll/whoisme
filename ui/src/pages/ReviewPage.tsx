@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import FileReview from '../components/FileReview'
 import ProgressSteps from '../components/ProgressSteps'
-import { moreQuestions, startAuth } from '../lib/api'
+import { moreQuestions, startAuth, pauseInterview } from '../lib/api'
 
 const SESSION_STORAGE_KEY = 'whoisme_session'
 
@@ -13,11 +13,12 @@ function loadSession() {
       phase: string
       draftFiles: Record<string, string>
       approvedFiles: string[]
+      generating?: boolean
     } : null
   } catch { return null }
 }
 
-function saveSession(data: { sessionId: string; phase: string; draftFiles: Record<string, string>; approvedFiles: string[] }) {
+function saveSession(data: { sessionId: string; phase: string; draftFiles: Record<string, string>; approvedFiles: string[]; generating?: boolean }) {
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data))
 }
 
@@ -34,7 +35,22 @@ export default function ReviewPage() {
 
   const [draftFiles, setDraftFiles] = useState<Record<string, string>>(saved?.draftFiles ?? {})
   const [approvedFiles, setApprovedFiles] = useState<string[]>(saved?.approvedFiles ?? [])
+  const [generating, setGenerating] = useState(saved?.generating === true)
+  const [generateError, setGenerateError] = useState('')
   const sessionId = saved?.sessionId ?? ''
+
+  // If we navigated here immediately from "end interview", call pause API now
+  useEffect(() => {
+    if (!generating || !sessionId) return
+    pauseInterview(sessionId).then(res => {
+      setDraftFiles(res.draftFiles)
+      saveSession({ sessionId, phase: 'reviewing', draftFiles: res.draftFiles, approvedFiles, generating: false })
+      setGenerating(false)
+    }).catch(err => {
+      setGenerateError(err instanceof Error ? err.message : 'Failed to generate files')
+      setGenerating(false)
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [email, setEmail] = useState('')
   const [magicLinkSent, setMagicLinkSent] = useState(false)
@@ -86,6 +102,25 @@ export default function ReviewPage() {
 
   const hasDrafts = Object.keys(draftFiles).length > 0
 
+  if (generating) {
+    return (
+      <div className="interview-page">
+        <header className="interview-header">
+          <a href="#/" className="interview-logo"><img src="/assets/whoisme-logo.png" alt="WhoIsMe" /></a>
+          <ProgressSteps currentStep="review" />
+        </header>
+        <div className="interview-body">
+          <main className="interview-main">
+            <div className="review-generating">
+              <div className="review-generating-spinner" />
+              <p className="review-generating-text">Generating your profile files…</p>
+            </div>
+          </main>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="interview-page">
       <header className="interview-header">
@@ -99,6 +134,7 @@ export default function ReviewPage() {
       <div className="interview-body">
         <main className="interview-main">
           <div className="interview-review">
+            {generateError && <p className="interview-error" style={{margin: '16px 0'}}>{generateError}</p>}
 
             <div className="interview-publish-box interview-publish-box--top">
               <p className="interview-review-explainer">
@@ -139,9 +175,9 @@ export default function ReviewPage() {
                 </div>
               )}
 
-              {!hasDrafts && sessionId && (
+              {generateError && (
                 <div className="review-recovery-banner">
-                  <p>No drafts loaded. Your session ID is <code>{sessionId}</code> — sign in above to restore your files, or go back to the interview.</p>
+                  <p>Failed to generate files: {generateError}. Try going back to the interview.</p>
                 </div>
               )}
             </div>
