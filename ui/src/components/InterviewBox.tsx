@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react'
-import { createInterview, respondToInterview, skipQuestion, pauseInterview } from '../lib/api'
+import { createInterview, respondToInterview, skipQuestion } from '../lib/api'
 import type { InterviewPhase, RespondResponse } from '../lib/types'
 import MicButton from './MicButton'
 import SpeakButton from './SpeakButton'
@@ -355,21 +355,10 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
     }
   }, [boxState, handleInterviewerMessage, onQuestionsUpdate])
 
-  const handlePause = useCallback(async () => {
+  const handlePause = useCallback(() => {
     if (!sessionIdRef.current) { showNoSession(); return }
-    setBoxState('submitting')
-    setStatus('Generating drafts...')
-    try {
-      const res = await pauseInterview(sessionIdRef.current)
-      setStatus('')
-      setPhase('reviewing')
-      onPhaseChange?.('reviewing', res.draftFiles, res.skippedSections)
-    } catch (err) {
-      const msg = report('pause_failed', err)
-      setStatus(`Error: ${msg}`)
-      setStatusType('error')
-      setBoxState('waiting')
-    }
+    // Navigate immediately — ReviewPage will call the pause API and show a spinner
+    onPhaseChange?.('reviewing')
   }, [onPhaseChange])
 
   const handlePlay = useCallback(() => {

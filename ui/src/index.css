@@ -1847,6 +1847,35 @@ html, html * { cursor: none !important; }
 }
 .interview-start-over:hover { opacity: 1; }
 
+/* Generating spinner shown immediately when user ends interview */
+.review-generating {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 120px 24px;
+}
+.review-generating-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(240,242,255,0.1);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: review-spin 0.8s linear infinite;
+}
+@keyframes review-spin {
+  to { transform: rotate(360deg); }
+}
+.review-generating-text {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(240,242,255,0.4);
+  margin: 0;
+}
+
 .review-start-over-row {
   display: flex;
   justify-content: center;

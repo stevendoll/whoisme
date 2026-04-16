@@ -11,6 +11,7 @@ function saveSession(data: {
   phase: InterviewPhase
   draftFiles: Record<string, string>
   approvedFiles: string[]
+  generating?: boolean
 }) {
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(data))
 }
@@ -20,6 +21,7 @@ function loadSession(): {
   phase: InterviewPhase
   draftFiles: Record<string, string>
   approvedFiles: string[]
+  generating?: boolean
 } | null {
   try {
     const raw = localStorage.getItem(SESSION_STORAGE_KEY)
@@ -36,6 +38,8 @@ export default function InterviewPage() {
   const [resumePrompt, setResumePrompt] = useState(saved?.phase === 'reviewing')
 
   const [sessionId, setSessionId] = useState<string | null>(saved?.sessionId ?? null)
+  const sessionIdRef = useRef<string | null>(saved?.sessionId ?? null)
+  useEffect(() => { sessionIdRef.current = sessionId }, [sessionId])
   const [phase, setPhase] = useState<InterviewPhase>(saved?.phase === 'reviewing' ? 'interviewing' : (saved?.phase ?? 'interviewing'))
   const [questionsRemaining, setQuestionsRemaining] = useState<number | null>(null)
   const [sectionDensity, setSectionDensity] = useState<Record<string, number>>({})
@@ -59,11 +63,17 @@ export default function InterviewPage() {
     if (skipped) setSkippedSections(skipped)
 
     if (newPhase === 'reviewing') {
-      // Navigate to dedicated review page
+      // Save synchronously before navigating so ReviewPage reads fresh data
+      const sid = sessionIdRef.current
+      if (sid) {
+        const mergedDrafts = drafts ? { ...draftFiles, ...drafts } : draftFiles
+        const generating = !drafts  // no drafts = triggered by pause button, ReviewPage will call the API
+        saveSession({ sessionId: sid, phase: 'reviewing', draftFiles: mergedDrafts, approvedFiles, generating })
+      }
       history.replaceState(null, '', '#/review')
       window.dispatchEvent(new HashChangeEvent('hashchange'))
     }
-  }, [])
+  }, [draftFiles, approvedFiles])
 
   const handleSectionsTouched = useCallback((sections: string[]) => {
     setSectionDensity(prev => {
