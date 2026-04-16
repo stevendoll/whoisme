@@ -33,14 +33,7 @@ export default function InterviewPage() {
   const boxRef = useRef<InterviewBoxHandle>(null)
 
   const saved = loadSession()
-
-  // If saved session is in reviewing phase, redirect to #/review
-  useEffect(() => {
-    if (saved?.phase === 'reviewing') {
-      history.replaceState(null, '', '#/review')
-      window.dispatchEvent(new HashChangeEvent('hashchange'))
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const [resumePrompt, setResumePrompt] = useState(saved?.phase === 'reviewing')
 
   const [sessionId, setSessionId] = useState<string | null>(saved?.sessionId ?? null)
   const [phase, setPhase] = useState<InterviewPhase>(saved?.phase === 'reviewing' ? 'interviewing' : (saved?.phase ?? 'interviewing'))
@@ -85,6 +78,33 @@ export default function InterviewPage() {
     localStorage.removeItem(SESSION_STORAGE_KEY)
     history.replaceState(null, '', '#/')
     window.dispatchEvent(new HashChangeEvent('hashchange'))
+  }
+
+  const handleStartFresh = () => {
+    localStorage.removeItem(SESSION_STORAGE_KEY)
+    setResumePrompt(false)
+  }
+
+  if (resumePrompt) {
+    return (
+      <div className="interview-page">
+        <header className="interview-header">
+          <a href="#/" className="interview-logo"><img src="/assets/whoisme-banner.png" alt="WhoIsMe" /></a>
+          <ProgressSteps currentStep="interview" />
+        </header>
+        <div className="interview-body">
+          <main className="interview-main">
+            <div className="resume-prompt">
+              <p className="resume-prompt-text">You have a profile draft in progress.</p>
+              <div className="resume-prompt-actions">
+                <a href="#/review" className="btn-primary">Continue reviewing</a>
+                <button className="btn-ghost" onClick={handleStartFresh}>Start a new interview</button>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    )
   }
 
   return (

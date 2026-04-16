@@ -472,3 +472,65 @@ def import_session():
         ExpressionAttributeValues={":u": user["user_id"]},
     )
     return {"ok": True}
+
+
+@router.post("/users/me/unpublish")
+def unpublish():
+    """Remove the user's public profile from KV and mark as unpublished."""
+    user = _get_current_user(router.current_event)
+
+    username = user.get("username")
+    if username and _CF_TOKEN and _CF_KV_NS:
+        try:
+            resp = requests.delete(
+                _kv_url(username),
+                headers={"Authorization": f"Bearer {_CF_TOKEN}"},
+                timeout=10,
+            )
+            result = resp.json()
+            if not result.get("success"):
+                logger.error(f"KV delete failed: {result.get('errors')}")
+        except Exception as e:
+            logger.error(f"KV delete error: {e}")
+
+    db.users_table.update_item(
+        Key={"user_id": user["user_id"]},
+        UpdateExpression="SET published = :p REMOVE last_published_at",
+        ExpressionAttributeValues={":p": False},
+    )
+    return {"ok": True}
+
+
+@router.delete("/users/me")
+def delete_account():
+    """Permanently delete the user's account and all associated data."""
+    user = _get_current_user(router.current_event)
+    user_id = user["user_id"]
+
+    # Remove public profile from KV
+    username = user.get("username")
+    if username and _CF_TOKEN and _CF_KV_NS:
+        try:
+            resp = requests.delete(
+                _kv_url(username),
+                headers={"Authorization": f"Bearer {_CF_TOKEN}"},
+                timeout=10,
+            )
+            result = resp.json()
+            if not result.get("success"):
+                logger.error(f"KV delete failed during account deletion: {result.get('errors')}")
+        except Exception as e:
+            logger.error(f"KV delete error during account deletion: {e}")
+
+    # Delete all interview sessions for this user
+    scan_resp = db.interview_sessions_table.scan(
+        FilterExpression="user_id = :u",
+        ExpressionAttributeValues={":u": user_id},
+    )
+    for session in scan_resp.get("Items", []):
+        db.interview_sessions_table.delete_item(Key={"session_id": session["session_id"]})
+
+    # Delete user record
+    db.users_table.delete_item(Key={"user_id": user_id})
+
+    return {"ok": True}

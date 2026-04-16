@@ -65,8 +65,9 @@ export default function ReviewPage() {
   }
 
   const handleStartOver = () => {
-    if (!confirm('Start a new interview? Your current session will be lost.')) return
+    if (!confirm('Start fresh? Your current session and sign-in will be cleared.')) return
     localStorage.removeItem(SESSION_STORAGE_KEY)
+    localStorage.removeItem('whoisme_user_token')
     history.replaceState(null, '', '#/')
     window.dispatchEvent(new HashChangeEvent('hashchange'))
   }
@@ -158,6 +159,12 @@ export default function ReviewPage() {
               onApprove={file => setApprovedFiles(prev => [...prev, file])}
               onDraftUpdate={(file, draft) => setDraftFiles(prev => ({ ...prev, [file]: draft }))}
             />
+
+            <div className="review-start-over-row">
+              <button className="btn-ghost review-start-over-btn" onClick={handleStartOver}>
+                start over
+              </button>
+            </div>
           </div>
         </main>
       </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getMe, updateVisibility, publishProfile } from '../lib/api'
+import { getMe, updateVisibility, publishProfile, unpublishProfile, deleteAccount } from '../lib/api'
 import type { UserProfile } from '../lib/types'
 import ProgressSteps from '../components/ProgressSteps'
 
@@ -52,6 +52,8 @@ export default function ProfilePage() {
   const [publishedUrl, setPublishedUrl] = useState('')
   const [lastPublishedAt, setLastPublishedAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [unpublishing, setUnpublishing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const session = loadSession()
   const draftFiles = session?.draftFiles ?? {}
@@ -100,6 +102,35 @@ export default function ProfilePage() {
       setPublishError(err instanceof Error ? err.message : 'Failed to publish')
     } finally {
       setPublishing(false)
+    }
+  }
+
+  const handleUnpublish = async () => {
+    if (!confirm('Remove your public profile? It will no longer be accessible at whoisme.io/u/' + username)) return
+    setUnpublishing(true)
+    try {
+      await unpublishProfile()
+      setPublishedUrl('')
+      setLastPublishedAt(null)
+    } catch (err) {
+      setPublishError(err instanceof Error ? err.message : 'Failed to unpublish')
+    } finally {
+      setUnpublishing(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!confirm('Delete your account and all data permanently? This cannot be undone.')) return
+    setDeleting(true)
+    try {
+      await deleteAccount()
+      localStorage.removeItem('whoisme_session')
+      localStorage.removeItem('whoisme_user_token')
+      history.replaceState(null, '', '#/')
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
+    } catch (err) {
+      setPublishError(err instanceof Error ? err.message : 'Failed to delete account')
+      setDeleting(false)
     }
   }
 
@@ -251,7 +282,17 @@ export default function ProfilePage() {
 
         {profile && (
           <div className="profile-account">
-            Signed in as <strong>{profile.email}</strong>
+            <span>Signed in as <strong>{profile.email}</strong></span>
+            <div className="profile-danger-zone">
+              {publishedUrl && (
+                <button className="btn-ghost profile-danger-btn" onClick={handleUnpublish} disabled={unpublishing}>
+                  {unpublishing ? 'Unpublishing…' : 'Unpublish'}
+                </button>
+              )}
+              <button className="btn-ghost profile-danger-btn profile-danger-btn--delete" onClick={handleDeleteAccount} disabled={deleting}>
+                {deleting ? 'Deleting…' : 'Delete account'}
+              </button>
+            </div>
           </div>
         )}
       </div>
