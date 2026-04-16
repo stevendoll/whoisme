@@ -1259,9 +1259,9 @@ html, html * { cursor: none !important; }
   position: sticky;
   top: 0;
   z-index: 50;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   height: 80px;
   padding: 0 40px;
   border-bottom: 1px solid var(--border);
@@ -1836,8 +1836,97 @@ html, html * { cursor: none !important; }
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 80px;
   justify-content: flex-end;
+}
+
+/* ─── Account menu ───────────────────────────────────────────── */
+
+.account-menu-wrap {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.account-btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: none;
+  border: 1px solid rgba(240,242,255,0.2);
+  border-radius: 4px;
+  color: rgba(240,242,255,0.55);
+  padding: 5px 12px;
+  cursor: none;
+  transition: border-color 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+.account-btn--active {
+  color: rgba(240,242,255,0.85);
+  border-color: rgba(240,242,255,0.35);
+}
+.account-btn--active:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.account-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.account-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  background: rgba(28,32,80,0.98);
+  border: 1px solid rgba(240,242,255,0.12);
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.account-dropdown-email {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.6rem;
+  color: rgba(240,242,255,0.3);
+  padding: 6px 10px 8px;
+  border-bottom: 1px solid rgba(240,242,255,0.08);
+  margin-bottom: 4px;
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-dropdown-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 5px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  color: rgba(240,242,255,0.7);
+  padding: 8px 10px;
+  cursor: none;
+  transition: background 0.15s, color 0.15s;
+  text-decoration: none;
+}
+.account-dropdown-item:hover:not(:disabled) {
+  background: rgba(240,242,255,0.06);
+  color: rgba(240,242,255,0.95);
+}
+.account-dropdown-item:disabled { opacity: 0.4; cursor: default; }
+.account-dropdown-item--danger { color: rgba(255,100,100,0.7); }
+.account-dropdown-item--danger:hover:not(:disabled) {
+  background: rgba(255,100,100,0.08);
+  color: rgba(255,130,130,0.95);
 }
 
 .interview-start-over {

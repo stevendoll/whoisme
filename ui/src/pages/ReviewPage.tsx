@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import FileReview from '../components/FileReview'
 import ProgressSteps from '../components/ProgressSteps'
+import AccountMenu from '../components/AccountMenu'
 import { moreQuestions, startAuth, pauseInterview } from '../lib/api'
 
 const SESSION_STORAGE_KEY = 'whoisme_session'
@@ -106,6 +107,7 @@ export default function ReviewPage() {
         <header className="interview-header">
           <a href="#/" className="interview-logo"><img src="/assets/whoisme-logo.png" alt="WhoIsMe" /></a>
           <ProgressSteps currentStep="review" />
+          <AccountMenu />
         </header>
         <div className="interview-body">
           <main className="interview-main">
@@ -126,6 +128,7 @@ export default function ReviewPage() {
         <ProgressSteps currentStep="review" />
         <div className="interview-header-actions">
           <button className="btn-ghost interview-start-over" onClick={handleStartOver}>start over</button>
+          <AccountMenu />
         </div>
       </header>
 
