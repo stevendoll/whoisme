@@ -53,7 +53,14 @@ jobs:
 
       - name: Sync to S3
         run: |
+          # Hashed assets: cache aggressively (content-addressed, safe to cache forever)
+          aws s3 sync ui/dist/assets/ s3://${{ secrets.S3_BUCKET }}/assets/ \
+            --cache-control "max-age=31536000,immutable" \
+            --region ${{ env.AWS_REGION }}
+          # index.html and other root files: never cache (always revalidate)
           aws s3 sync ui/dist/ s3://${{ secrets.S3_BUCKET }} \
+            --exclude "assets/*" \
+            --cache-control "no-cache,no-store,must-revalidate" \
             --delete --region ${{ env.AWS_REGION }}
 
       - name: Invalidate CloudFront cache

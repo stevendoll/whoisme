@@ -80,6 +80,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
   const [ttsState, setTtsState] = useState<'idle' | 'connecting' | 'playing'>('idle')
 
   const [questionsRemaining, setQuestionsRemaining] = useState<number | null>(null)
+  const [questionsTotal, setQuestionsTotal] = useState<number | null>(null)
 
   const inputRef         = useRef<HTMLTextAreaElement>(null)
   const audioCtxRef      = useRef<AudioContext | null>(null)
@@ -269,6 +270,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       onSessionCreated?.(id)
       onQuestionsUpdate?.(result.questionsRemaining)
       setQuestionsRemaining(result.questionsRemaining)
+      setQuestionsTotal(result.questionsTotal)
       if (result.heckle) { onHeckle?.(result.heckle) }
       void handleInterviewerMessageRef.current(result.message, result.heckle ?? null)
     }).catch(err => {
@@ -290,6 +292,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       onSessionCreated?.(id)
       onQuestionsUpdate?.(result.questionsRemaining)
       setQuestionsRemaining(result.questionsRemaining)
+      setQuestionsTotal(result.questionsTotal)
       if (result.heckle) { onHeckle?.(result.heckle) }
       void handleInterviewerMessageRef.current(result.message, result.heckle ?? null)
     }).catch(err => {
@@ -450,7 +453,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
               >
                 skip
               </button>
-              {questionsRemaining !== null && questionsRemaining <= 10 && (
+              {questionsRemaining !== null && questionsTotal !== null && (questionsTotal - questionsRemaining) >= 2 && (
                 <button
                   className="voicebox-reset"
                   onClick={handlePause}
