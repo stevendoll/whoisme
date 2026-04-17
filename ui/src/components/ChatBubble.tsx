@@ -6,6 +6,7 @@ interface Props {
 }
 
 function stripTags(text: string): string {
+  if (!text) return ''
   return text
     .replace(/<emotion[^>]*\/>/g, '')
     .replace(/\[laughter\]/gi, '')

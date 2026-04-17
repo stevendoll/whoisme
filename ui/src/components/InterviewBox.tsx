@@ -24,6 +24,7 @@ const WISE_GUY_VOICE_ID: string = (import.meta.env.VITE_WISE_GUY_VOICE_ID as str
   || 'a0e99841-438c-4a64-b679-ae501e7d6091' // Barbershop Man
 
 function stripSsml(text: string): string {
+  if (!text) return ''
   return text
     .replace(/<emotion[^>]*\/?>/gi, '')
     .replace(/<\/emotion>/gi, '')
