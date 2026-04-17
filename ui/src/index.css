@@ -44,42 +44,6 @@ body {
   cursor: none;
 }
 
-/* Nav */
-nav {
-  position: fixed;
-  top: 0; left: 0; right: 0;
-  z-index: 50;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: 80px;
-  padding: 0 48px;
-  border-bottom: 1px solid rgba(240,242,255,0.055);
-  backdrop-filter: blur(12px);
-  background: rgba(45,50,125,0.92);
-}
-
-nav a { text-decoration: none; }
-
-nav a img { height: 19px; width: auto; display: block; }
-
-nav ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  gap: 40px;
-}
-
-nav ul a {
-  font-size: 0.72rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(240,242,255,0.5);
-  transition: color 0.2s;
-}
-
-nav ul a:hover { color: var(--accent); }
 
 /* Hero section */
 #hero {
