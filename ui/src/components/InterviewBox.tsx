@@ -24,6 +24,7 @@ const WISE_GUY_VOICE_ID: string = (import.meta.env.VITE_WISE_GUY_VOICE_ID as str
   || 'a0e99841-438c-4a64-b679-ae501e7d6091' // Barbershop Man
 
 function stripSsml(text: string): string {
+  if (!text) return ''
   return text
     .replace(/<emotion[^>]*\/?>/gi, '')
     .replace(/<\/emotion>/gi, '')
@@ -214,8 +215,6 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
   }, [reportTtsError])
 
   const handleInterviewerMessage = useCallback(async (message: string, heckleText: string | null, res?: RespondResponse) => {
-    addMessage('interviewer', message)
-
     // Show wise guy on only 30% of questions, and only if enabled
     const effectiveHeckle = (heckleText && wiseGuyEnabledRef.current && Math.random() < 0.3)
       ? heckleText : null
@@ -223,6 +222,8 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       addMessage('heckle', effectiveHeckle)
       onHeckle?.(effectiveHeckle)
     }
+
+    addMessage('interviewer', message)
 
     if (res) {
       onSectionsTouched?.(res.sectionsTouched)

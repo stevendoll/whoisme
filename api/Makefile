@@ -21,7 +21,7 @@ local-db-reset:  ## Drop and recreate local tables
 	$(MAKE) local-db-seed
 
 local-api-start:  ## Start API server locally via SAM (port 3000)
-	sam local start-api --port 3000 --env-vars env.local.json
+	sam local start-api --port 3000 --env-vars env.local.json --docker-network api_default
 
 test:  ## Run API unit tests
 	pipenv run python -m pytest tests/ -v

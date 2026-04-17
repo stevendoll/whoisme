@@ -13,6 +13,10 @@ __pycache__/
 .venv/
 Pipfile.lock
 api/.aws-sam/
+api/.coverage
+
+# Wrangler (Cloudflare)
+.wrangler/
 
 # Node
 ui/node_modules/
