@@ -215,8 +215,6 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
   }, [reportTtsError])
 
   const handleInterviewerMessage = useCallback(async (message: string, heckleText: string | null, res?: RespondResponse) => {
-    addMessage('interviewer', message)
-
     // Show wise guy on only 30% of questions, and only if enabled
     const effectiveHeckle = (heckleText && wiseGuyEnabledRef.current && Math.random() < 0.3)
       ? heckleText : null
@@ -224,6 +222,8 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       addMessage('heckle', effectiveHeckle)
       onHeckle?.(effectiveHeckle)
     }
+
+    addMessage('interviewer', message)
 
     if (res) {
       onSectionsTouched?.(res.sectionsTouched)

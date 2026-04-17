@@ -4,9 +4,14 @@ services:
     container_name: whoisme-dynamodb-local
     ports:
       - "8000:8000"
-    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+    command: "-jar DynamoDBLocal.jar -sharedDb"
+    volumes:
+      - dynamodb-data:/home/dynamodblocal
     healthcheck:
       test: ["CMD-SHELL", "curl -s http://localhost:8000 > /dev/null || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 10
+
+volumes:
+  dynamodb-data:
