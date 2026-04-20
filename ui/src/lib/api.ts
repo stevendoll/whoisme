@@ -183,3 +183,14 @@ export function contextPublish(sessionId: string): Promise<{ section: string; pu
     body: JSON.stringify({ session_id: sessionId }),
   }, true)
 }
+
+export function contextImport(
+  section: string,
+  content: string,
+  merge: 'replace' | 'prepend' | 'append',
+): Promise<{ section: string; merge: string; published_at: string; url: string }> {
+  return apiFetch('/users/me/context-import', {
+    method: 'POST',
+    body: JSON.stringify({ section, content, merge }),
+  }, true)
+}

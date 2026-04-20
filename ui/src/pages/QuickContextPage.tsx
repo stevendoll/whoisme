@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import InterviewBox from '../components/InterviewBox'
 import type { InterviewBoxHandle } from '../components/InterviewBox'
-import { getContextSections, contextEnd, contextPublish } from '../lib/api'
+import { getContextSections, contextEnd, contextPublish, contextImport } from '../lib/api'
 import type { ContextSectionMeta } from '../lib/api'
 import type { InterviewPhase } from '../lib/types'
 
-type Step = 'loading' | 'choose' | 'interviewing' | 'publishing' | 'success' | 'error'
+type Step = 'loading' | 'choose' | 'interviewing' | 'import' | 'publishing' | 'success' | 'error'
+type MergeStrategy = 'replace' | 'prepend' | 'append'
 
 export default function QuickContextPage() {
   const [step, setStep] = useState<Step>('loading')
@@ -14,6 +15,9 @@ export default function QuickContextPage() {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [successUrl, setSuccessUrl] = useState('')
   const [error, setError] = useState('')
+  const [importSection, setImportSection] = useState('')
+  const [importContent, setImportContent] = useState('')
+  const [importMerge, setImportMerge] = useState<MergeStrategy>('prepend')
   const boxRef = useRef<InterviewBoxHandle>(null)
 
   useEffect(() => {
@@ -62,7 +66,31 @@ export default function QuickContextPage() {
     setSessionId(null)
     setSuccessUrl('')
     setError('')
+    setImportContent('')
+    setImportSection('')
+    setImportMerge('prepend')
     setStep('choose')
+  }
+
+  const handleImportSubmit = async () => {
+    if (!importSection || !importContent.trim()) return
+    setStep('publishing')
+    try {
+      const result = await contextImport(importSection, importContent.trim(), importMerge)
+      setSuccessUrl(result.url)
+      setStep('success')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Import failed')
+      setStep('error')
+    }
+  }
+
+  const handleFileLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => setImportContent(ev.target?.result as string ?? '')
+    reader.readAsText(file)
   }
 
   if (step === 'loading') {
@@ -87,7 +115,9 @@ export default function QuickContextPage() {
   }
 
   if (step === 'success') {
-    const label = selectedSection?.label ?? 'context'
+    const label = selectedSection?.label
+      ?? sections.find(s => s.key === importSection)?.label
+      ?? 'context'
     return (
       <div className="landing-page">
         <div className="landing-content">
@@ -138,6 +168,13 @@ export default function QuickContextPage() {
               </button>
             ))}
             <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0' }} />
+            <button
+              className="btn-ghost"
+              style={{ textAlign: 'left', padding: '14px 20px' }}
+              onClick={() => { setImportSection(sections[0]?.key ?? ''); setStep('import') }}
+            >
+              Import markdown
+            </button>
             <a href="#/interview" className="btn-ghost" style={{ textAlign: 'left', padding: '14px 20px' }}>
               Full interview — start over
             </a>
@@ -146,6 +183,94 @@ export default function QuickContextPage() {
             <a href="#/profile" style={{ color: 'rgba(245,240,232,0.4)', fontSize: '0.8rem' }}>
               ← Back to profile
             </a>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (step === 'import') {
+    const mergeOptions: { value: MergeStrategy; label: string; description: string }[] = [
+      { value: 'prepend', label: 'Prepend', description: 'Add before existing content' },
+      { value: 'append',  label: 'Append',  description: 'Add after existing content' },
+      { value: 'replace', label: 'Replace', description: 'Overwrite existing content' },
+    ]
+    return (
+      <div className="landing-page">
+        <div className="landing-content" style={{ maxWidth: 560, width: '100%' }}>
+          <p className="landing-subheading" style={{ marginBottom: 24 }}>Import markdown</p>
+
+          <div style={{ marginBottom: 16, textAlign: 'left' }}>
+            <label style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(245,240,232,0.5)', marginBottom: 6 }}>
+              Section
+            </label>
+            <select
+              value={importSection}
+              onChange={e => setImportSection(e.target.value)}
+              style={{
+                width: '100%', padding: '10px 12px', background: 'var(--surface)',
+                border: '1px solid var(--border)', borderRadius: 6,
+                color: 'var(--text)', fontSize: '0.9rem',
+              }}
+            >
+              {sections.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+            </select>
+          </div>
+
+          <div style={{ marginBottom: 16, textAlign: 'left' }}>
+            <label style={{ display: 'block', fontSize: '0.8rem', color: 'rgba(245,240,232,0.5)', marginBottom: 6 }}>
+              Merge strategy
+            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {mergeOptions.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setImportMerge(opt.value)}
+                  title={opt.description}
+                  style={{
+                    flex: 1, padding: '8px 0', fontSize: '0.85rem', cursor: 'pointer',
+                    background: importMerge === opt.value ? 'var(--accent, rgba(245,240,232,0.12))' : 'var(--surface)',
+                    border: `1px solid ${importMerge === opt.value ? 'rgba(245,240,232,0.4)' : 'var(--border)'}`,
+                    borderRadius: 6, color: 'var(--text)',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16, textAlign: 'left' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <label style={{ fontSize: '0.8rem', color: 'rgba(245,240,232,0.5)' }}>Content</label>
+              <label style={{ fontSize: '0.8rem', color: 'rgba(245,240,232,0.4)', cursor: 'pointer' }}>
+                Load file
+                <input type="file" accept=".md,.txt" onChange={handleFileLoad} style={{ display: 'none' }} />
+              </label>
+            </div>
+            <textarea
+              value={importContent}
+              onChange={e => setImportContent(e.target.value)}
+              placeholder="Paste markdown here or load a file…"
+              rows={12}
+              style={{
+                width: '100%', padding: '10px 12px', background: 'var(--surface)',
+                border: '1px solid var(--border)', borderRadius: 6,
+                color: 'var(--text)', fontSize: '0.85rem', resize: 'vertical',
+                fontFamily: 'monospace', boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+            <button className="btn-ghost" onClick={handleReset}>Cancel</button>
+            <button
+              className="btn-ghost"
+              onClick={handleImportSubmit}
+              disabled={!importSection || !importContent.trim()}
+            >
+              Import
+            </button>
           </div>
         </div>
       </div>

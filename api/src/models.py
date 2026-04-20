@@ -177,3 +177,9 @@ class UpdateVisibilityRequest(WhoIsMeModel):
 
 class PublishRequest(WhoIsMeModel):
     username: str = Field(min_length=2, max_length=30, pattern=r"^[a-z0-9_-]+$")
+
+
+class ContextImportRequest(WhoIsMeModel):
+    section: str
+    content: str = Field(min_length=1, max_length=500_000)
+    merge: Literal["replace", "prepend", "append"] = "prepend"
