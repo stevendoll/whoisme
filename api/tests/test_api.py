@@ -744,10 +744,10 @@ class TestRespond(unittest.TestCase):
         status, _ = self._call(sid)
         self.assertEqual(status, 400)
 
-    @patch("api.routers.interview.call_bedrock")
-    def test_phase_transition_at_last_question(self, mock_bedrock):
-        # First call = next question, subsequent calls = draft generation (one per section)
-        mock_bedrock.side_effect = [_MOCK_QUESTION] + [_MOCK_DRAFT] * len(__import__("models").SECTIONS)
+    @patch("drafting.call_bedrock", return_value=_MOCK_DRAFT)
+    @patch("api.routers.interview.call_bedrock", return_value=_MOCK_QUESTION)
+    def test_phase_transition_at_last_question(self, _mock_q, _mock_draft):
+        # First call (in interview.py) = next question; draft generation calls go through drafting.py
         sid = _seed_interview_session(self.ddb, questions_asked=19, questions_total=20)
         status, body = self._call(sid)
         self.assertEqual(status, 200)
@@ -877,14 +877,14 @@ class TestPauseSession(unittest.TestCase):
         result = handler(_make_event("POST", f"/interview/{session_id}/pause"), MagicMock())
         return result["statusCode"], json.loads(result["body"])
 
-    @patch("api.routers.interview.call_bedrock", return_value=_MOCK_DRAFT)
+    @patch("drafting.call_bedrock", return_value=_MOCK_DRAFT)
     def test_transitions_to_reviewing(self, _mock):
         sid = _seed_interview_session(self.ddb)
         status, body = self._call(sid)
         self.assertEqual(status, 200)
         self.assertEqual(body["phase"], "reviewing")
 
-    @patch("api.routers.interview.call_bedrock", return_value=_MOCK_DRAFT)
+    @patch("drafting.call_bedrock", return_value=_MOCK_DRAFT)
     def test_draft_files_populated(self, _mock):
         sid = _seed_interview_session(self.ddb)
         self._call(sid)
@@ -961,7 +961,7 @@ class TestReviewFeedback(unittest.TestCase):
                                      body={"file": file, "text": text}), MagicMock())
         return result["statusCode"], json.loads(result["body"])
 
-    @patch("api.routers.interview.call_bedrock", return_value={"draft": "Revised draft content."})
+    @patch("drafting.call_bedrock", return_value={"draft": "Revised draft content."})
     def test_updates_draft(self, _mock):
         sid = _seed_interview_session(self.ddb, phase="reviewing",
                                       draft_files={"identity": "Original draft."})

@@ -11,7 +11,8 @@ from aws_lambda_powertools.event_handler.api_gateway import Router
 from aws_lambda_powertools.event_handler.exceptions import BadRequestError, NotFoundError, UnauthorizedError
 
 import db
-from models import DEFAULT_VISIBILITY, SECTIONS, User
+from drafting import summarize_ideas
+from models import DEFAULT_VISIBILITY, SECTIONS, CONTEXT_SECTIONS, User
 
 logger = Logger(service="whoisme-api")
 router = Router()
@@ -407,6 +408,113 @@ def publish():
     _write_profile_to_kv(user, approved_files)
 
     return {"username": username, "url": f"https://whoisme.io/u/{username}", "last_published_at": now}
+
+
+@router.post("/users/me/context-publish")
+def context_publish():
+    """Format answers from a completed context session and publish to KV immediately."""
+    user = _get_current_user(router.current_event)
+
+    if not user.get("published") or not user.get("username"):
+        raise BadRequestError("Profile must be published before adding quick context")
+
+    body = router.current_event.json_body or {}
+    session_id = (body.get("session_id") or "").strip()
+    if not session_id:
+        raise BadRequestError("session_id is required")
+
+    resp = db.interview_sessions_table.get_item(Key={"session_id": session_id})
+    session = resp.get("Item")
+    if not session:
+        raise NotFoundError("Session not found")
+
+    if session.get("phase") != "complete":
+        raise BadRequestError("Session is not complete")
+
+    context_type = session.get("context_type")
+    if not context_type or context_type not in CONTEXT_SECTIONS:
+        raise BadRequestError("Not a valid context session")
+
+    section_def = CONTEXT_SECTIONS[context_type]
+    history = session.get("history", [])
+
+    # Extract user answers (skip the initial "Please begin." turn)
+    user_answers = [
+        m["content"] for m in history
+        if m["role"] == "user" and m["content"] not in ("Please begin.", "Please begin")
+    ]
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    if section_def.format_template:
+        ctx = {"date": today}
+        for i, answer in enumerate(user_answers):
+            ctx[f"q{i}"] = answer
+        entry = section_def.format_template.format_map(ctx)
+    else:
+        # AI formatting (ideas)
+        entry = summarize_ideas(history, today)
+
+    # Load or initialize the user's permanent context session
+    ctx_session_id = f"ctx-{user['user_id']}"
+    ctx_resp = db.interview_sessions_table.get_item(Key={"session_id": ctx_session_id})
+    ctx_session = ctx_resp.get("Item") or {
+        "session_id": ctx_session_id,
+        "user_id": user["user_id"],
+        "approved_files": {},
+        "approved_files_at": {},
+        "history": [],
+        "phase": "complete",
+        "questions_asked": 0,
+        "questions_total": 0,
+        "section_density": {},
+        "skipped_sections": [],
+        "draft_files": {},
+        "created_at": _now_iso(),
+        "ttl": _ttl_ts(days=3650),  # 10 years — permanent
+    }
+
+    existing = ctx_session.get("approved_files", {}).get(context_type, "")
+    updated_content = entry + ("\n" + existing if existing else "")
+
+    now = _now_iso()
+    ctx_session.setdefault("approved_files", {})[context_type] = updated_content
+    ctx_session.setdefault("approved_files_at", {})[context_type] = now
+
+    db.interview_sessions_table.put_item(Item=ctx_session)
+
+    # Gather all approved files across all sessions and publish
+    all_approved: dict = {}
+    scan_resp = db.interview_sessions_table.scan(
+        FilterExpression="user_id = :u",
+        ExpressionAttributeValues={":u": user["user_id"]},
+    )
+    for s in scan_resp.get("Items", []):
+        all_approved.update(s.get("approved_files", {}))
+
+    _write_profile_to_kv(user, all_approved)
+
+    return {
+        "section": context_type,
+        "published_at": now,
+        "url": f"https://whoisme.io/u/{user['username']}",
+    }
+
+
+@router.get("/sections/context")
+def get_context_sections():
+    """Return context section registry metadata for the frontend."""
+    return {
+        "sections": [
+            {
+                "key": s.key,
+                "label": s.label,
+                "default_visibility": s.default_visibility,
+                "ai_driven": len(s.questions) == 0,
+            }
+            for s in CONTEXT_SECTIONS.values()
+        ]
+    }
 
 
 @router.post("/users/me/token")

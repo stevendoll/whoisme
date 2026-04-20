@@ -15,6 +15,9 @@ const SECTIONS = [
   'preferences-and-constraints',
   'domain-knowledge',
   'decision-log',
+  'standup',
+  'networking',
+  'ideas',
 ]
 
 const SECTION_LABELS: Record<string, string> = {
@@ -28,6 +31,9 @@ const SECTION_LABELS: Record<string, string> = {
   'preferences-and-constraints': 'Preferences & Constraints',
   'domain-knowledge':            'Domain Knowledge',
   'decision-log':                'Decision Log',
+  'standup':                     'Standup',
+  'networking':                  'Networking',
+  'ideas':                       'Ideas',
 }
 
 const SESSION_STORAGE_KEY = 'whoisme_session'
@@ -167,6 +173,7 @@ export default function ProfilePage() {
                   </button>
                 )}
                 <a href="#/review" className="btn-ghost">Edit files</a>
+                <a href="#/context" className="btn-ghost">Add</a>
               </div>
               {publishError && <p className="interview-error">{publishError}</p>}
             </div>

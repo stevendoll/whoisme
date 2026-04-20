@@ -75,8 +75,11 @@ export function postAdminVerify(token: string): Promise<{ ok: boolean; email?: s
 
 // ── Interview ─────────────────────────────────────────────────────────────────
 
-export function createInterview(): Promise<CreateInterviewResponse> {
-  return apiFetch('/interview', { method: 'POST' })
+export function createInterview(params?: { contextType?: string }): Promise<CreateInterviewResponse> {
+  return apiFetch('/interview', {
+    method: 'POST',
+    body: params?.contextType ? JSON.stringify({ context_type: params.contextType }) : undefined,
+  })
 }
 
 export function respondToInterview(sessionId: string, text: string): Promise<RespondResponse> {
@@ -155,4 +158,28 @@ export function unpublishProfile(): Promise<{ ok: boolean }> {
 
 export function deleteAccount(): Promise<{ ok: boolean }> {
   return apiFetch('/users/me', { method: 'DELETE' }, true)
+}
+
+// ── Quick context ─────────────────────────────────────────────────────────────
+
+export interface ContextSectionMeta {
+  key: string
+  label: string
+  defaultVisibility: string
+  aiDriven: boolean
+}
+
+export function getContextSections(): Promise<{ sections: ContextSectionMeta[] }> {
+  return apiFetch('/sections/context')
+}
+
+export function contextEnd(sessionId: string): Promise<{ ok: boolean }> {
+  return apiFetch(`/interview/${sessionId}/context-end`, { method: 'POST' })
+}
+
+export function contextPublish(sessionId: string): Promise<{ section: string; publishedAt: string; url: string }> {
+  return apiFetch('/users/me/context-publish', {
+    method: 'POST',
+    body: JSON.stringify({ session_id: sessionId }),
+  }, true)
 }

@@ -58,6 +58,10 @@ interface InterviewBoxProps {
   onHeckle?: (text: string) => void
   onSessionCreated?: (sessionId: string) => void
   onSkippedUpdate?: (skipped: string[]) => void
+  /** When set, the box operates in quick-context mode: no skip/pause; shows Done button for AI-driven types */
+  contextType?: string
+  /** Fires when the user clicks "Done" in an AI-driven context session (ideas) */
+  onContextDone?: () => void
 }
 
 const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function InterviewBox({
@@ -67,6 +71,8 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
   onHeckle,
   onSessionCreated,
   onSkippedUpdate: _onSkippedUpdate,
+  contextType,
+  onContextDone,
 }, ref) {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [phase, setPhase] = useState<InterviewPhase>('interviewing')
@@ -264,7 +270,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
   // Start interview on mount
   useEffect(() => {
     let cancelled = false
-    createInterview().then(result => {
+    createInterview(contextType ? { contextType } : undefined).then(result => {
       if (cancelled) return
       const id = result.sessionId
       setSessionId(id)
@@ -286,7 +292,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
     setBoxState('loading')
     setStatus('')
     let cancelled = false
-    createInterview().then(result => {
+    createInterview(contextType ? { contextType } : undefined).then(result => {
       if (cancelled) return
       const id = result.sessionId
       setSessionId(id)
@@ -434,27 +440,31 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
               {latencyMs !== null && <span className="voicebox-latency">{latencyMs}ms</span>}
             </span>
             <div className="voicebox-toolbar-right">
-              <label className="wise-guy-toggle" title={wiseGuyEnabled ? 'Silence the wise guy' : 'Let the wise guy speak'}>
-                <span className="wise-guy-label">wise guy</span>
-                <span className={`wise-guy-switch${wiseGuyEnabled ? ' wise-guy-switch--on' : ''}`}
-                  role="switch"
-                  aria-checked={wiseGuyEnabled}
-                  onClick={() => {
-                    wiseGuyEnabledRef.current = !wiseGuyEnabledRef.current
-                    setWiseGuyEnabled(v => !v)
-                  }}
-                />
-              </label>
-              <button
-                className="voicebox-reset"
-                onClick={handleSkipQuestion}
-                disabled={isBusy}
-                title="Skip this question and move to new topics"
-                aria-label="Skip question"
-              >
-                skip
-              </button>
-              {questionsRemaining !== null && questionsTotal !== null && (questionsTotal - questionsRemaining) >= 2 && (
+              {!contextType && (
+                <label className="wise-guy-toggle" title={wiseGuyEnabled ? 'Silence the wise guy' : 'Let the wise guy speak'}>
+                  <span className="wise-guy-label">wise guy</span>
+                  <span className={`wise-guy-switch${wiseGuyEnabled ? ' wise-guy-switch--on' : ''}`}
+                    role="switch"
+                    aria-checked={wiseGuyEnabled}
+                    onClick={() => {
+                      wiseGuyEnabledRef.current = !wiseGuyEnabledRef.current
+                      setWiseGuyEnabled(v => !v)
+                    }}
+                  />
+                </label>
+              )}
+              {!contextType && (
+                <button
+                  className="voicebox-reset"
+                  onClick={handleSkipQuestion}
+                  disabled={isBusy}
+                  title="Skip this question and move to new topics"
+                  aria-label="Skip question"
+                >
+                  skip
+                </button>
+              )}
+              {!contextType && questionsRemaining !== null && questionsTotal !== null && (questionsTotal - questionsRemaining) >= 2 && (
                 <button
                   className="voicebox-reset"
                   onClick={handlePause}
@@ -463,6 +473,17 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
                   aria-label="End interview"
                 >
                   end interview
+                </button>
+              )}
+              {contextType && onContextDone && questionsRemaining !== null && questionsTotal !== null && (questionsTotal - questionsRemaining) >= 1 && (
+                <button
+                  className="voicebox-reset"
+                  onClick={onContextDone}
+                  disabled={isBusy}
+                  title="Done — save and publish"
+                  aria-label="Done brainstorming"
+                >
+                  done
                 </button>
               )}
               <MicButton
