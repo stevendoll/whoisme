@@ -1,8 +1,63 @@
+from dataclasses import dataclass
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
-from typing import Literal
+from typing import Literal, Optional
 
-SECTIONS = [
+
+# ── Context section registry ──────────────────────────────────────────────────
+
+@dataclass
+class ContextSectionDef:
+    key: str
+    label: str
+    default_visibility: str           # "public" | "private"
+    questions: list[str]              # hardcoded questions; empty = AI-driven
+    format_template: Optional[str]    # template with {date}, {q0}, {q1}…; None = AI formats
+    ai_prompt_file: Optional[str]     # prompt filename for AI-driven sessions
+    ai_questions_count: int = 6       # turns for AI-driven sessions
+
+
+CONTEXT_SECTIONS: dict[str, ContextSectionDef] = {
+    "standup": ContextSectionDef(
+        key="standup",
+        label="Standup",
+        default_visibility="private",
+        questions=[
+            "What did you get done?",
+            "What's next on your plate?",
+            "Anything blocking you?",
+            "Any notes to add?",
+        ],
+        format_template="## {date}\n- Done: {q0}\n- Next: {q1}\n- Blocked: {q2}\n- Note: {q3}\n",
+        ai_prompt_file=None,
+    ),
+    "networking": ContextSectionDef(
+        key="networking",
+        label="Networking",
+        default_visibility="private",
+        questions=[
+            "Who do you want to talk about?",
+            "What's on your mind about them?",
+            "Any followup you're planning?",
+        ],
+        format_template="## {q0} — {date}\n**Notes:** {q1}\n**Followup:** {q2}\n",
+        ai_prompt_file=None,
+    ),
+    "ideas": ContextSectionDef(
+        key="ideas",
+        label="Ideas",
+        default_visibility="private",
+        questions=[],               # AI-driven
+        format_template=None,       # AI formats the output
+        ai_prompt_file="ideas_v1.txt",
+        ai_questions_count=6,
+    ),
+}
+
+
+# ── Derived section lists (add context types here automatically) ──────────────
+
+_PROFILE_SECTIONS = [
     "identity",
     "role-and-responsibilities",
     "current-projects",
@@ -15,6 +70,8 @@ SECTIONS = [
     "decision-log",
 ]
 
+SECTIONS: list[str] = [*_PROFILE_SECTIONS, *CONTEXT_SECTIONS.keys()]
+
 DEFAULT_VISIBILITY: dict[str, str] = {
     "identity": "public",
     "role-and-responsibilities": "public",
@@ -26,6 +83,7 @@ DEFAULT_VISIBILITY: dict[str, str] = {
     "preferences-and-constraints": "private",
     "domain-knowledge": "private",
     "decision-log": "private",
+    **{k: v.default_visibility for k, v in CONTEXT_SECTIONS.items()},
 }
 
 InterviewPhase = Literal["interviewing", "reviewing", "complete"]
