@@ -12,7 +12,7 @@ from aws_lambda_powertools.event_handler.exceptions import BadRequestError, NotF
 
 import db
 from drafting import summarize_ideas
-from models import DEFAULT_VISIBILITY, SECTIONS, CONTEXT_SECTIONS, User
+from models import DEFAULT_VISIBILITY, SECTIONS, CONTEXT_SECTIONS, User, ContextImportRequest
 
 logger = Logger(service="whoisme-api")
 router = Router()
@@ -496,6 +496,68 @@ def context_publish():
 
     return {
         "section": context_type,
+        "published_at": now,
+        "url": f"https://whoisme.io/u/{user['username']}",
+    }
+
+
+@router.post("/users/me/context-import")
+def context_import():
+    """Import raw markdown into a context section with a chosen merge strategy."""
+    user = _get_current_user(router.current_event)
+
+    if not user.get("published") or not user.get("username"):
+        raise BadRequestError("Profile must be published before importing context")
+
+    body = router.current_event.json_body or {}
+    req = ContextImportRequest(**body)
+
+    if req.section not in SECTIONS:
+        raise BadRequestError(f"Invalid section: {req.section}")
+
+    ctx_session_id = f"ctx-{user['user_id']}"
+    ctx_resp = db.interview_sessions_table.get_item(Key={"session_id": ctx_session_id})
+    ctx_session = ctx_resp.get("Item") or {
+        "session_id": ctx_session_id,
+        "user_id": user["user_id"],
+        "approved_files": {},
+        "approved_files_at": {},
+        "history": [],
+        "phase": "complete",
+        "questions_asked": 0,
+        "questions_total": 0,
+        "section_density": {},
+        "skipped_sections": [],
+        "draft_files": {},
+        "created_at": _now_iso(),
+        "ttl": _ttl_ts(days=3650),
+    }
+
+    existing = ctx_session.get("approved_files", {}).get(req.section, "")
+    if req.merge == "replace" or not existing:
+        updated = req.content
+    elif req.merge == "prepend":
+        updated = req.content + "\n" + existing
+    else:  # append
+        updated = existing + "\n" + req.content
+
+    now = _now_iso()
+    ctx_session.setdefault("approved_files", {})[req.section] = updated
+    ctx_session.setdefault("approved_files_at", {})[req.section] = now
+    db.interview_sessions_table.put_item(Item=ctx_session)
+
+    all_approved: dict = {}
+    scan_resp = db.interview_sessions_table.scan(
+        FilterExpression="user_id = :u",
+        ExpressionAttributeValues={":u": user["user_id"]},
+    )
+    for s in scan_resp.get("Items", []):
+        all_approved.update(s.get("approved_files", {}))
+    _write_profile_to_kv(user, all_approved)
+
+    return {
+        "section": req.section,
+        "merge": req.merge,
         "published_at": now,
         "url": f"https://whoisme.io/u/{user['username']}",
     }
