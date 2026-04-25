@@ -101,6 +101,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
   const sessionIdRef     = useRef<string | null>(null)
   const wiseGuyEnabledRef = useRef(true)
   const [wiseGuyEnabled, setWiseGuyEnabled] = useState(true)
+  const questionCountRef = useRef(0)
 
   // Keep ref in sync so callbacks have stable access
   useEffect(() => { sessionIdRef.current = sessionId }, [sessionId])
@@ -220,9 +221,12 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
     })
   }, [reportTtsError])
 
-  const handleInterviewerMessage = useCallback(async (message: string, heckleText: string | null, res?: RespondResponse) => {
-    // Show wise guy on only 30% of questions, and only if enabled
-    const effectiveHeckle = (heckleText && wiseGuyEnabledRef.current && Math.random() < 0.3)
+  const handleInterviewerMessage = useCallback(async (message: string, heckleText: string | null, res?: RespondResponse, forceHeckle = false) => {
+    // Show wise guy: always on 3rd question or forced (e.g. skip), then 30% of the time after that
+    questionCountRef.current += 1
+    const count = questionCountRef.current
+    const showWiseGuy = forceHeckle || count === 3 || Math.random() < 0.3
+    const effectiveHeckle = (heckleText && wiseGuyEnabledRef.current && showWiseGuy)
       ? heckleText : null
     if (effectiveHeckle) {
       addMessage('heckle', effectiveHeckle)
@@ -356,7 +360,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
       setStatus('')
       onQuestionsUpdate?.(res.questionsRemaining)
       setQuestionsRemaining(res.questionsRemaining)
-      await handleInterviewerMessage(res.message, res.heckle)
+      await handleInterviewerMessage(res.message, res.heckle, undefined, true)
     } catch (err) {
       const msg = report('skip_failed', err)
       setStatus(`Error: ${msg}`)

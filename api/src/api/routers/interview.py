@@ -49,7 +49,7 @@ def _save_session(session: dict) -> None:
     db.interview_sessions_table.put_item(Item=session)
 
 
-def _call_interviewer(session: dict) -> dict:
+def _call_interviewer(session: dict, force_heckle: bool = False) -> dict:
     """Ask Bedrock for the next interview question. Returns parsed JSON dict."""
     history = list(session.get("history", []))
 
@@ -60,6 +60,8 @@ def _call_interviewer(session: dict) -> dict:
     system = _INTERVIEWER_SYSTEM
     if skipped:
         system += f"\n\nDo not ask questions about these sections (user has skipped them): {', '.join(skipped)}."
+    if force_heckle:
+        system += "\n\nforce_heckle: true — you MUST include a heckle in this response."
 
     return call_bedrock(system, history, prefill="{", max_tokens=600)
 
@@ -240,7 +242,7 @@ def respond(session_id: str):
         }
 
     # Standard interview flow
-    result = _call_interviewer(session)
+    result = _call_interviewer(session, force_heckle=(questions_asked == 2))
 
     message = result.get("message", "")
     sections_touched = result.get("sections_touched", [])
@@ -299,7 +301,7 @@ def skip_question(session_id: str):
     history.append({"role": "user", "content": "[SKIP: Please ask a different question on a different topic]"})
     session["history"] = history
 
-    result = _call_interviewer(session)
+    result = _call_interviewer(session, force_heckle=True)
     new_question = result.get("message", "")
     heckle = result.get("heckle")
 
@@ -328,7 +330,7 @@ def skip_section(session_id: str):
         skipped.append(section)
     session["skipped_sections"] = skipped
 
-    result = _call_interviewer(session)
+    result = _call_interviewer(session, force_heckle=True)
     new_question = result.get("message", "")
     heckle = result.get("heckle")
 

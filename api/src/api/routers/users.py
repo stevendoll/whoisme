@@ -546,13 +546,17 @@ def context_import():
     ctx_session.setdefault("approved_files_at", {})[req.section] = now
     db.interview_sessions_table.put_item(Item=ctx_session)
 
+    # Scan other sessions, then apply our just-written data on top to avoid
+    # eventual consistency issues where the scan returns a stale ctx session.
     all_approved: dict = {}
     scan_resp = db.interview_sessions_table.scan(
         FilterExpression="user_id = :u",
         ExpressionAttributeValues={":u": user["user_id"]},
     )
     for s in scan_resp.get("Items", []):
-        all_approved.update(s.get("approved_files", {}))
+        if s.get("session_id") != ctx_session_id:
+            all_approved.update(s.get("approved_files", {}))
+    all_approved.update(ctx_session.get("approved_files", {}))  # always use fresh copy
     _write_profile_to_kv(user, all_approved)
 
     return {
