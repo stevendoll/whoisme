@@ -65,7 +65,8 @@ export default function MicButton({ onTranscript, onEnd, onError, disabled, getB
     rec.onend = () => {
       clearSilenceTimer()
       setRecording(false)
-      if (finalTranscript) onTranscript(baseText ? `${baseText} ${finalTranscript}` : finalTranscript)
+      // Do not call onTranscript here — onresult already fires the final transcript
+      // and calling it again after submission clears the input causes stale text to reappear
       onEnd()
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
