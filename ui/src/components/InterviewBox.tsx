@@ -247,6 +247,7 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
     setBoxState('interviewer-speaking')
     if (effectiveHeckle) {
       await speakText(effectiveHeckle, WISE_GUY_VOICE_ID)
+      await new Promise(resolve => setTimeout(resolve, 3000))
     }
     await speakText(message)
     setBoxState('waiting')
