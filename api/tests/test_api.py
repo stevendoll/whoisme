@@ -756,6 +756,24 @@ class TestRespond(unittest.TestCase):
         self.assertEqual(item["phase"], "reviewing")
         self.assertTrue(len(item.get("draft_files", {})) > 0)
 
+    _FORCE_HECKLE_INJECTION = "force_heckle: true — you MUST include a heckle in this response."
+
+    @patch("api.routers.interview.call_bedrock", return_value={**_MOCK_QUESTION, "sections_touched": []})
+    def test_force_heckle_on_third_question(self, mock_bedrock):
+        """Answering Q2 (questions_asked becomes 2) must inject force_heckle into the system prompt."""
+        sid = _seed_interview_session(self.ddb, questions_asked=1)
+        self._call(sid)
+        system = mock_bedrock.call_args[0][0]
+        self.assertIn(self._FORCE_HECKLE_INJECTION, system)
+
+    @patch("api.routers.interview.call_bedrock", return_value={**_MOCK_QUESTION, "sections_touched": []})
+    def test_no_force_heckle_on_other_questions(self, mock_bedrock):
+        """On questions other than the 3rd, the force_heckle injection must not be present."""
+        sid = _seed_interview_session(self.ddb, questions_asked=0)
+        self._call(sid)
+        system = mock_bedrock.call_args[0][0]
+        self.assertNotIn(self._FORCE_HECKLE_INJECTION, system)
+
 
 @mock_aws
 class TestSkipQuestion(unittest.TestCase):
@@ -787,6 +805,16 @@ class TestSkipQuestion(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(body["message"], "Different question.")
 
+    _FORCE_HECKLE_INJECTION = "force_heckle: true — you MUST include a heckle in this response."
+
+    @patch("api.routers.interview.call_bedrock", return_value={"message": "Different question.", "heckle": "Nice skip."})
+    def test_skip_question_forces_heckle_in_system(self, mock_bedrock):
+        """Skipping a question must inject force_heckle into the system prompt."""
+        sid = _seed_interview_session(self.ddb)
+        self._call(sid)
+        system = mock_bedrock.call_args[0][0]
+        self.assertIn(self._FORCE_HECKLE_INJECTION, system)
+
     def test_wrong_phase_returns_400(self):
         sid = _seed_interview_session(self.ddb, phase="reviewing")
         status, _ = self._call(sid)
@@ -814,6 +842,16 @@ class TestSkipSection(unittest.TestCase):
         status, body = self._call(sid, "identity")
         self.assertEqual(status, 200)
         self.assertIn("identity", body["skipped_sections"])
+
+    _FORCE_HECKLE_INJECTION = "force_heckle: true — you MUST include a heckle in this response."
+
+    @patch("api.routers.interview.call_bedrock", return_value=_MOCK_QUESTION)
+    def test_skip_section_forces_heckle_in_system(self, mock_bedrock):
+        """Skipping a section must inject force_heckle into the system prompt."""
+        sid = _seed_interview_session(self.ddb)
+        self._call(sid, "identity")
+        system = mock_bedrock.call_args[0][0]
+        self.assertIn(self._FORCE_HECKLE_INJECTION, system)
 
     @patch("api.routers.interview.call_bedrock", return_value=_MOCK_QUESTION)
     def test_skipping_already_skipped_is_idempotent(self, _mock):
