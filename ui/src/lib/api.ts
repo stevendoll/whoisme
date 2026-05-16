@@ -132,6 +132,10 @@ export function getMe(): Promise<UserProfile> {
   return apiFetch('/users/me', {}, true)
 }
 
+export function getMyFiles(): Promise<{ files: Record<string, string> }> {
+  return apiFetch('/users/me/files', {}, true)
+}
+
 export function updateVisibility(visibility: Record<string, string>): Promise<{ visibility: Record<string, string> }> {
   return apiFetch('/users/me/visibility', { method: 'PATCH', body: JSON.stringify({ visibility }) }, true)
 }

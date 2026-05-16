@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import FileReview from '../components/FileReview'
 import ProgressSteps from '../components/ProgressSteps'
 import AccountMenu from '../components/AccountMenu'
-import { moreQuestions, startAuth, pauseInterview } from '../lib/api'
+import { moreQuestions, startAuth, pauseInterview, getMyFiles } from '../lib/api'
 
 const SESSION_STORAGE_KEY = 'whoisme_session'
 
@@ -26,9 +26,9 @@ function saveSession(data: { sessionId: string; phase: string; draftFiles: Recor
 export default function ReviewPage() {
   const saved = loadSession()
 
-  // Redirect if no valid session
+  // Redirect if no valid session and not logged in
   useEffect(() => {
-    if (!saved?.sessionId) {
+    if (!saved?.sessionId && !localStorage.getItem('whoisme_user_token')) {
       history.replaceState(null, '', '#/')
       window.dispatchEvent(new HashChangeEvent('hashchange'))
     }
@@ -39,6 +39,7 @@ export default function ReviewPage() {
   const [generating, setGenerating] = useState(saved?.generating === true)
   const [generateError, setGenerateError] = useState('')
   const sessionId = saved?.sessionId ?? ''
+  const isLoggedInMode = !sessionId && !!localStorage.getItem('whoisme_user_token')
 
   // If we navigated here immediately from "end interview", call pause API now
   useEffect(() => {
@@ -50,6 +51,18 @@ export default function ReviewPage() {
     }).catch(err => {
       setGenerateError(err instanceof Error ? err.message : 'Failed to generate files')
       setGenerating(false)
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Logged-in mode: load approved files from account when no local session
+  useEffect(() => {
+    if (!isLoggedInMode) return
+    getMyFiles().then(res => {
+      setDraftFiles(res.files)
+      setApprovedFiles(Object.keys(res.files))
+    }).catch(() => {
+      history.replaceState(null, '', '#/')
+      window.dispatchEvent(new HashChangeEvent('hashchange'))
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
