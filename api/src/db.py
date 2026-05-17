@@ -11,3 +11,5 @@ admin_tokens_table       = _dynamodb.Table(os.environ.get("ADMIN_TOKENS_TABLE", 
 users_table              = _dynamodb.Table(os.environ.get("USERS_TABLE",              "whoisme-users"))
 user_tokens_table        = _dynamodb.Table(os.environ.get("USER_TOKENS_TABLE",        "whoisme-user-tokens"))
 interview_sessions_table = _dynamodb.Table(os.environ.get("INTERVIEW_SESSIONS_TABLE", "whoisme-interview-sessions"))
+documents_table          = _dynamodb.Table(os.environ.get("DOCUMENTS_TABLE",          "whoisme-documents"))
+document_versions_table  = _dynamodb.Table(os.environ.get("DOCUMENT_VERSIONS_TABLE",  "whoisme-document-versions"))

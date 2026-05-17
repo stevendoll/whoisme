@@ -20,7 +20,7 @@ from aws_lambda_powertools.event_handler import APIGatewayHttpResolver, CORSConf
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 import db  # noqa: F401
-from api.routers import contacts, errors, auth, interview, users
+from api.routers import contacts, documents, errors, auth, interview, users
 
 logger  = Logger(service="whoisme-api")
 metrics = Metrics(namespace="WhoIsMeApi")
@@ -31,7 +31,8 @@ api.include_router(contacts.router)  # POST /contacts
 api.include_router(errors.router)    # POST /errors
 api.include_router(auth.router)      # POST /admin/login, POST /admin/verify
 api.include_router(interview.router) # POST /interview, /interview/{id}/*
-api.include_router(users.router)     # POST /users/start, /users/verify, /users/me/*
+api.include_router(users.router)      # POST /users/start, /users/verify, /users/me/*
+api.include_router(documents.router)  # GET/POST /documents, /documents/{id}/versions/*
 
 
 @logger.inject_lambda_context(log_event=False)
