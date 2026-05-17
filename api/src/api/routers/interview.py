@@ -434,6 +434,10 @@ def review_approve(session_id: str):
     session["approved_files_at"] = approved_files_at
     _save_session(session)
 
+    user_id = session.get("user_id")
+    if user_id and draft:
+        db.upsert_published_document(user_id, file, draft)
+
     return {"approved_files": list(approved_files.keys()), "approved_files_at": approved_files_at}
 
 

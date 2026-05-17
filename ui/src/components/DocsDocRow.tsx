@@ -28,6 +28,17 @@ interface Props {
   onToggleVisibility: (section: string, current: string) => void
 }
 
+const STUB_DOC = (section: string): Document => ({
+  documentId: '',
+  title: section,
+  createdAt: '',
+  visibility: 'public',
+  versionId: null,
+  content: null,
+  publishedAt: null,
+  hasDraft: false,
+})
+
 export default function DocsDocRow({ section, document: doc, onEdit, onToggleVisibility }: Props) {
   const label = SECTION_LABELS[section] ?? section
   const vis = doc?.visibility ?? 'public'
@@ -51,10 +62,9 @@ export default function DocsDocRow({ section, document: doc, onEdit, onToggleVis
         )}
         <button
           className="btn-ghost docs-edit-btn"
-          onClick={() => doc && onEdit(doc)}
-          disabled={!doc}
+          onClick={() => onEdit(doc ?? STUB_DOC(section))}
         >
-          {doc ? 'Edit' : 'No draft'}
+          Edit
         </button>
       </div>
     </div>

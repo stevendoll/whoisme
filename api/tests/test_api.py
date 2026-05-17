@@ -605,6 +605,40 @@ class TestPublishTimestamps(unittest.TestCase):
         self.assertIn("approved_files_at", session)
         self.assertIn("identity", session["approved_files_at"])
 
+    def test_approve_creates_document_when_user_linked(self):
+        """POST /interview/:id/review/approve should create a document when session has user_id."""
+        from api.app import handler
+        from boto3.dynamodb.conditions import Key
+
+        user_id = str(uuid.uuid4())
+        session_id = str(uuid.uuid4())
+        self.ddb.Table("interview-sessions").put_item(Item={
+            "session_id": session_id,
+            "phase": "reviewing",
+            "user_id": user_id,
+            "draft_files": {"identity": "My identity content."},
+            "approved_files": {},
+        })
+        event = _make_event("POST", f"/interview/{session_id}/review/approve", body={"file": "identity"})
+        result = handler(event, MagicMock())
+        self.assertEqual(result["statusCode"], 200)
+
+        # Document should now exist in documents table
+        docs = self.ddb.Table("documents").query(
+            KeyConditionExpression=Key("user_id").eq(user_id),
+        )["Items"]
+        self.assertEqual(len(docs), 1)
+        self.assertEqual(docs[0]["title"], "identity")
+
+        # Published version should exist
+        versions = self.ddb.Table("document-versions").query(
+            IndexName="document-created-index",
+            KeyConditionExpression=Key("document_id").eq(docs[0]["document_id"]),
+        )["Items"]
+        self.assertEqual(len(versions), 1)
+        self.assertTrue(versions[0]["is_published"])
+        self.assertEqual(versions[0]["content"], "My identity content.")
+
     def test_changed_since_publish_detection(self):
         """approved_files_at newer than last_published_at indicates unpublished changes."""
         user_id, session_token = self._seed_user_with_session()
@@ -781,17 +815,16 @@ class TestRespond(unittest.TestCase):
         status, _ = self._call(sid)
         self.assertEqual(status, 400)
 
-    @patch("drafting.call_bedrock", return_value=_MOCK_DRAFT)
     @patch("api.routers.interview.call_bedrock", return_value=_MOCK_QUESTION)
-    def test_phase_transition_at_last_question(self, _mock_q, _mock_draft):
-        # First call (in interview.py) = next question; draft generation calls go through drafting.py
+    def test_phase_transition_at_last_question(self, _mock_q):
+        # Draft generation is deferred to /pause — only phase transitions here
         sid = _seed_interview_session(self.ddb, questions_asked=19, questions_total=20)
         status, body = self._call(sid)
         self.assertEqual(status, 200)
         self.assertEqual(body["phase"], "reviewing")
         item = self.ddb.Table("interview-sessions").get_item(Key={"session_id": sid})["Item"]
         self.assertEqual(item["phase"], "reviewing")
-        self.assertTrue(len(item.get("draft_files", {})) > 0)
+        self.assertEqual(item.get("draft_files", {}), {})
 
     _FORCE_HECKLE_INJECTION = "force_heckle: true — you MUST include a heckle in this response."
 
@@ -967,10 +1000,13 @@ class TestPauseSession(unittest.TestCase):
         self.assertEqual(item["phase"], "reviewing")
         self.assertGreater(len(item.get("draft_files", {})), 0)
 
-    def test_already_reviewing_returns_400(self):
+    @patch("drafting.call_bedrock", return_value=_MOCK_DRAFT)
+    def test_pause_from_reviewing_is_idempotent(self, _mock):
+        """Pausing from reviewing phase regenerates drafts and returns 200 (recovery path)."""
         sid = _seed_interview_session(self.ddb, phase="reviewing")
-        status, _ = self._call(sid)
-        self.assertEqual(status, 400)
+        status, body = self._call(sid)
+        self.assertEqual(status, 200)
+        self.assertEqual(body["phase"], "reviewing")
 
 
 @mock_aws

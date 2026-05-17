@@ -20,11 +20,12 @@ const SECTION_LABELS: Record<string, string> = {
 
 interface Props {
   doc: Document
+  fallbackContent?: string
   onClose: () => void
   onSaved: (updated: Document) => void
 }
 
-export default function DocEditorPanel({ doc, onClose, onSaved }: Props) {
+export default function DocEditorPanel({ doc, fallbackContent, onClose, onSaved }: Props) {
   const [versions, setVersions] = useState<DocVersion[]>([])
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null)
   const [content, setContent] = useState('')
@@ -33,10 +34,10 @@ export default function DocEditorPanel({ doc, onClose, onSaved }: Props) {
   const [error, setError] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Initial content: draft version if has_draft, else published content
+  // Initial content: draft version if has_draft, else published content, else approved_files fallback
   const initialContent = doc.hasDraft
     ? '' // will be set once versions load
-    : (doc.content ?? '')
+    : (doc.content ?? fallbackContent ?? '')
 
   useEffect(() => {
     setContent(initialContent)

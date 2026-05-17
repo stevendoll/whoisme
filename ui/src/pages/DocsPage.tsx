@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getMe, getDocuments, updateVisibility } from '../lib/api'
+import { getMe, getDocuments, getMyFiles, updateVisibility } from '../lib/api'
 import type { Document, UserProfile } from '../lib/types'
 import AccountMenu from '../components/AccountMenu'
 import DocsGroup from '../components/DocsGroup'
@@ -19,6 +19,7 @@ const IA_GROUPS: Record<string, string[]> = {
 export default function DocsPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [documents, setDocuments] = useState<Document[]>([])
+  const [approvedFiles, setApprovedFiles] = useState<Record<string, string>>({})
   const [editingDoc, setEditingDoc] = useState<Document | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -30,8 +31,8 @@ export default function DocsPage() {
       return
     }
 
-    Promise.all([getMe(), getDocuments()])
-      .then(([me, docsRes]) => {
+    Promise.all([getMe(), getDocuments(), getMyFiles()])
+      .then(([me, docsRes, filesRes]) => {
         if (!me.published) {
           history.replaceState(null, '', '#/profile')
           window.dispatchEvent(new HashChangeEvent('hashchange'))
@@ -39,6 +40,7 @@ export default function DocsPage() {
         }
         setProfile(me)
         setDocuments(docsRes.documents)
+        setApprovedFiles(filesRes.files)
       })
       .catch(() => {
         history.replaceState(null, '', '#/interview')
@@ -128,6 +130,7 @@ export default function DocsPage() {
       {editingDoc && (
         <DocEditorPanel
           doc={editingDoc}
+          fallbackContent={approvedFiles[editingDoc.title]}
           onClose={() => setEditingDoc(null)}
           onSaved={updated => {
             handleSaved(updated)
