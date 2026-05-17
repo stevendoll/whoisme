@@ -51,7 +51,7 @@ def call_bedrock(
             if start == -1 or end == -1 or end <= start:
                 raise ValueError(f"No JSON in response: {raw[:200]!r}")
 
-            return json.loads(raw[start:end + 1])
+            return json.loads(raw[start:end + 1], strict=False)
 
         except (ValueError, KeyError, json.JSONDecodeError) as e:
             logger.warning(f"Bedrock attempt {attempt + 1} failed: {e}")

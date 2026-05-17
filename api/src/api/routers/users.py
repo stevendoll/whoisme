@@ -335,6 +335,19 @@ def get_me():
     }
 
 
+@router.get("/users/me/files")
+def get_my_files():
+    user = _get_current_user(router.current_event)
+    approved_files: dict = {}
+    scan_resp = db.interview_sessions_table.scan(
+        FilterExpression="user_id = :u",
+        ExpressionAttributeValues={":u": user["user_id"]},
+    )
+    for session in scan_resp.get("Items", []):
+        approved_files.update(session.get("approved_files", {}))
+    return {"files": approved_files}
+
+
 @router.patch("/users/me/visibility")
 def update_visibility():
     user = _get_current_user(router.current_event)
