@@ -18,6 +18,8 @@ os.environ.setdefault("ADMIN_TOKENS_TABLE",           "admin-tokens")
 os.environ.setdefault("USERS_TABLE",                  "users")
 os.environ.setdefault("USER_TOKENS_TABLE",            "user-tokens")
 os.environ.setdefault("INTERVIEW_SESSIONS_TABLE",     "interview-sessions")
+os.environ.setdefault("DOCUMENTS_TABLE",              "documents")
+os.environ.setdefault("DOCUMENT_VERSIONS_TABLE",      "document-versions")
 os.environ.setdefault("AWS_DEFAULT_REGION",           "us-east-1")
 os.environ.setdefault("AWS_ACCESS_KEY_ID",            "test")
 os.environ.setdefault("AWS_SECRET_ACCESS_KEY",        "test")
@@ -70,6 +72,41 @@ def _create_tables(ddb):
         TableName="interview-sessions",
         KeySchema=[{"AttributeName": "session_id", "KeyType": "HASH"}],
         AttributeDefinitions=[{"AttributeName": "session_id", "AttributeType": "S"}],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    ddb.create_table(
+        TableName="documents",
+        KeySchema=[
+            {"AttributeName": "user_id",     "KeyType": "HASH"},
+            {"AttributeName": "document_id", "KeyType": "RANGE"},
+        ],
+        AttributeDefinitions=[
+            {"AttributeName": "user_id",     "AttributeType": "S"},
+            {"AttributeName": "document_id", "AttributeType": "S"},
+        ],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    ddb.create_table(
+        TableName="document-versions",
+        KeySchema=[
+            {"AttributeName": "document_id", "KeyType": "HASH"},
+            {"AttributeName": "version_id",  "KeyType": "RANGE"},
+        ],
+        AttributeDefinitions=[
+            {"AttributeName": "document_id", "AttributeType": "S"},
+            {"AttributeName": "version_id",  "AttributeType": "S"},
+            {"AttributeName": "created_at",  "AttributeType": "S"},
+        ],
+        GlobalSecondaryIndexes=[
+            {
+                "IndexName": "document-created-index",
+                "KeySchema": [
+                    {"AttributeName": "document_id", "KeyType": "HASH"},
+                    {"AttributeName": "created_at",  "KeyType": "RANGE"},
+                ],
+                "Projection": {"ProjectionType": "ALL"},
+            },
+        ],
         BillingMode="PAY_PER_REQUEST",
     )
 

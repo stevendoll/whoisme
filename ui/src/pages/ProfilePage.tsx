@@ -172,6 +172,7 @@ export default function ProfilePage() {
                     {publishing ? 'Publishing…' : anyChangedSincePublish ? 'Republish (changes pending)' : 'Republish'}
                   </button>
                 )}
+                <a href="#/docs" className="btn-ghost">Manage docs</a>
                 <a href="#/review" className="btn-ghost">Edit files</a>
                 <a href="#/context" className="btn-ghost">Add</a>
               </div>

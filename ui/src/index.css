@@ -2024,3 +2024,255 @@ html, html * { cursor: none !important; }
   .landing-signin-row { flex-direction: column; align-items: center; }
   .landing-signin-row .interview-text-input { max-width: 100%; }
 }
+
+/* ── Docs Page ──────────────────────────────────────────────────────────────── */
+
+.docs-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.docs-body {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+  width: 100%;
+}
+
+.docs-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.docs-header-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  gap: 16px;
+}
+
+.docs-page-title {
+  font-size: 1.4rem;
+  font-weight: 500;
+  color: var(--white);
+  margin: 0;
+}
+
+.docs-live-link {
+  font-size: 0.78rem;
+  color: var(--accent);
+  text-decoration: none;
+  opacity: 0.8;
+}
+.docs-live-link:hover { opacity: 1; }
+
+.docs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.docs-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.docs-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.03);
+  border: none;
+  color: var(--white);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-align: left;
+}
+.docs-group-header:hover { background: rgba(255,255,255,0.06); }
+
+.docs-chevron {
+  font-size: 1rem;
+  transition: transform 0.15s;
+  display: inline-block;
+}
+.docs-chevron--open { transform: rotate(90deg); }
+
+.docs-group-content {
+  border-top: 1px solid var(--border);
+}
+
+.docs-doc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+.docs-doc-row:last-child { border-bottom: none; }
+
+.docs-doc-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.docs-doc-title {
+  font-size: 0.88rem;
+  color: var(--white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.docs-draft-badge {
+  font-size: 0.65rem;
+  font-family: 'DM Mono', monospace;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(27,196,204,0.15);
+  color: var(--accent);
+  border: 1px solid rgba(27,196,204,0.3);
+  white-space: nowrap;
+}
+
+.docs-doc-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.docs-doc-date {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  white-space: nowrap;
+}
+
+.docs-edit-btn {
+  font-size: 0.78rem;
+  padding: 4px 10px;
+}
+
+/* ── Doc Editor Panel ────────────────────────────────────────────────────────── */
+
+.docs-editor-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+}
+
+.docs-editor-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(560px, 100vw);
+  background: #1a1d4a;
+  border-left: 1px solid var(--border);
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  animation: slideInPanel 0.2s ease;
+}
+
+@keyframes slideInPanel {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+.docs-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.docs-editor-title {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--white);
+  margin: 0;
+}
+
+.docs-editor-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+.docs-editor-close:hover { color: var(--white); }
+
+.docs-version-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.docs-version-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  white-space: nowrap;
+}
+
+.docs-version-select {
+  flex: 1;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  color: var(--white);
+  font-size: 0.78rem;
+  font-family: 'DM Mono', monospace;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.docs-editor-textarea {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--white);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  padding: 16px;
+  resize: none;
+  outline: none;
+  overflow-y: auto;
+}
+
+.docs-editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .docs-header-row { flex-direction: column; gap: 4px; }
+  .docs-doc-date { display: none; }
+  .docs-editor-panel { width: 100vw; }
+}

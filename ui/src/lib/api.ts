@@ -9,6 +9,8 @@ import type {
   ReviewFeedbackResponse,
   SessionState,
   UserProfile,
+  Document,
+  DocVersion,
 } from './types'
 
 const BASE = import.meta.env.VITE_API_URL ?? ''
@@ -186,6 +188,28 @@ export function contextPublish(sessionId: string): Promise<{ section: string; pu
     method: 'POST',
     body: JSON.stringify({ session_id: sessionId }),
   }, true)
+}
+
+// ── Documents ─────────────────────────────────────────────────────────────────
+
+export function getDocuments(): Promise<{ documents: Document[] }> {
+  return apiFetch('/documents', {}, true)
+}
+
+export function createDocument(title: string, content: string): Promise<Document> {
+  return apiFetch('/documents', { method: 'POST', body: JSON.stringify({ title, content }) }, true)
+}
+
+export function createVersion(documentId: string, content: string): Promise<{ versionId: string; createdAt: string }> {
+  return apiFetch(`/documents/${documentId}/versions`, { method: 'POST', body: JSON.stringify({ content }) }, true)
+}
+
+export function getVersions(documentId: string): Promise<{ versions: DocVersion[] }> {
+  return apiFetch(`/documents/${documentId}/versions`, {}, true)
+}
+
+export function publishVersion(documentId: string, versionId: string): Promise<Document> {
+  return apiFetch(`/documents/${documentId}/versions/${versionId}/publish`, { method: 'POST' }, true)
 }
 
 export function contextImport(
