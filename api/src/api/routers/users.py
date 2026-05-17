@@ -274,6 +274,14 @@ def get_me():
     }
 
 
+@router.get("/users/me/files")
+def get_my_files():
+    """Return merged approved_files content from all interview sessions."""
+    user = _get_current_user(router.current_event)
+    approved_files = kv.gather_approved_files(user["user_id"])
+    return {"files": approved_files}
+
+
 @router.patch("/users/me/visibility")
 def update_visibility():
     user = _get_current_user(router.current_event)
@@ -332,7 +340,9 @@ def publish():
     for session in scan_resp.get("Items", []):
         approved_files.update(session.get("approved_files", {}))
 
-    if not approved_files:
+    # Also accept documents table as source of truth (new model)
+    doc_files = kv.gather_document_files(user["user_id"])
+    if not approved_files and not doc_files:
         raise BadRequestError("No approved files to publish")
 
     now = _now_iso()
@@ -584,6 +594,13 @@ def import_session():
         UpdateExpression="SET user_id = :u",
         ExpressionAttributeValues={":u": user["user_id"]},
     )
+
+    # Migrate any approved_files from this session into the documents table
+    approved_files = session.get("approved_files", {})
+    for title, content in approved_files.items():
+        if content and content.strip():
+            db.upsert_published_document(user["user_id"], title, content)
+
     return {"ok": True}
 
 

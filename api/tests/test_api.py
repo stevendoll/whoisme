@@ -605,6 +605,40 @@ class TestPublishTimestamps(unittest.TestCase):
         self.assertIn("approved_files_at", session)
         self.assertIn("identity", session["approved_files_at"])
 
+    def test_approve_creates_document_when_user_linked(self):
+        """POST /interview/:id/review/approve should create a document when session has user_id."""
+        from api.app import handler
+        from boto3.dynamodb.conditions import Key
+
+        user_id = str(uuid.uuid4())
+        session_id = str(uuid.uuid4())
+        self.ddb.Table("interview-sessions").put_item(Item={
+            "session_id": session_id,
+            "phase": "reviewing",
+            "user_id": user_id,
+            "draft_files": {"identity": "My identity content."},
+            "approved_files": {},
+        })
+        event = _make_event("POST", f"/interview/{session_id}/review/approve", body={"file": "identity"})
+        result = handler(event, MagicMock())
+        self.assertEqual(result["statusCode"], 200)
+
+        # Document should now exist in documents table
+        docs = self.ddb.Table("documents").query(
+            KeyConditionExpression=Key("user_id").eq(user_id),
+        )["Items"]
+        self.assertEqual(len(docs), 1)
+        self.assertEqual(docs[0]["title"], "identity")
+
+        # Published version should exist
+        versions = self.ddb.Table("document-versions").query(
+            IndexName="document-created-index",
+            KeyConditionExpression=Key("document_id").eq(docs[0]["document_id"]),
+        )["Items"]
+        self.assertEqual(len(versions), 1)
+        self.assertTrue(versions[0]["is_published"])
+        self.assertEqual(versions[0]["content"], "My identity content.")
+
     def test_changed_since_publish_detection(self):
         """approved_files_at newer than last_published_at indicates unpublished changes."""
         user_id, session_token = self._seed_user_with_session()

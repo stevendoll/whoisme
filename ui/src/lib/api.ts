@@ -186,6 +186,10 @@ export function contextPublish(sessionId: string): Promise<{ section: string; pu
   }, true)
 }
 
+export function getMyFiles(): Promise<{ files: Record<string, string> }> {
+  return apiFetch('/users/me/files', {}, true)
+}
+
 // ── Documents ─────────────────────────────────────────────────────────────────
 
 export function getDocuments(): Promise<{ documents: Document[] }> {
