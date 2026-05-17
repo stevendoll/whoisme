@@ -260,7 +260,8 @@ def respond(session_id: str):
     session["history"] = history
 
     if questions_remaining <= 0:
-        session = _enter_review(session)
+        session["phase"] = "reviewing"
+        session["draft_files"] = session.get("draft_files") or {}
 
     _save_session(session)
 
@@ -363,7 +364,7 @@ def pause_session(session_id: str):
     session = _get_session(session_id)
     if session.get("context_type"):
         raise BadRequestError("Use /context-end for context sessions")
-    if session["phase"] != "interviewing":
+    if session["phase"] not in ("interviewing", "reviewing"):
         raise BadRequestError(f"Session is already in '{session['phase']}' phase")
 
     session = _enter_review(session)

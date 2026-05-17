@@ -744,17 +744,16 @@ class TestRespond(unittest.TestCase):
         status, _ = self._call(sid)
         self.assertEqual(status, 400)
 
-    @patch("drafting.call_bedrock", return_value=_MOCK_DRAFT)
     @patch("api.routers.interview.call_bedrock", return_value=_MOCK_QUESTION)
-    def test_phase_transition_at_last_question(self, _mock_q, _mock_draft):
-        # First call (in interview.py) = next question; draft generation calls go through drafting.py
+    def test_phase_transition_at_last_question(self, _mock_q):
+        # Draft generation is deferred to /pause — only phase transitions here
         sid = _seed_interview_session(self.ddb, questions_asked=19, questions_total=20)
         status, body = self._call(sid)
         self.assertEqual(status, 200)
         self.assertEqual(body["phase"], "reviewing")
         item = self.ddb.Table("interview-sessions").get_item(Key={"session_id": sid})["Item"]
         self.assertEqual(item["phase"], "reviewing")
-        self.assertTrue(len(item.get("draft_files", {})) > 0)
+        self.assertEqual(item.get("draft_files", {}), {})
 
     _FORCE_HECKLE_INJECTION = "force_heckle: true — you MUST include a heckle in this response."
 
@@ -930,10 +929,13 @@ class TestPauseSession(unittest.TestCase):
         self.assertEqual(item["phase"], "reviewing")
         self.assertGreater(len(item.get("draft_files", {})), 0)
 
-    def test_already_reviewing_returns_400(self):
+    @patch("drafting.call_bedrock", return_value=_MOCK_DRAFT)
+    def test_pause_from_reviewing_is_idempotent(self, _mock):
+        """Pausing from reviewing phase regenerates drafts and returns 200 (recovery path)."""
         sid = _seed_interview_session(self.ddb, phase="reviewing")
-        status, _ = self._call(sid)
-        self.assertEqual(status, 400)
+        status, body = self._call(sid)
+        self.assertEqual(status, 200)
+        self.assertEqual(body["phase"], "reviewing")
 
 
 @mock_aws
