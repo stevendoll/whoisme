@@ -19,6 +19,8 @@ os.environ.setdefault("ADMIN_TOKENS_TABLE",             "admin-tokens")
 os.environ.setdefault("USERS_TABLE",                    "users")
 os.environ.setdefault("USER_TOKENS_TABLE",              "user-tokens")
 os.environ.setdefault("INTERVIEW_SESSIONS_TABLE",       "interview-sessions")
+os.environ.setdefault("DOCUMENTS_TABLE",                "documents")
+os.environ.setdefault("DOCUMENT_VERSIONS_TABLE",        "document-versions")
 os.environ.setdefault("AWS_DEFAULT_REGION",             "us-east-1")
 os.environ.setdefault("AWS_ACCESS_KEY_ID",              "test")
 os.environ.setdefault("AWS_SECRET_ACCESS_KEY",          "test")
@@ -94,6 +96,41 @@ def _create_tables(ddb):
         TableName="interview-sessions",
         KeySchema=[{"AttributeName": "session_id", "KeyType": "HASH"}],
         AttributeDefinitions=[{"AttributeName": "session_id", "AttributeType": "S"}],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    ddb.create_table(
+        TableName="documents",
+        KeySchema=[
+            {"AttributeName": "user_id",     "KeyType": "HASH"},
+            {"AttributeName": "document_id", "KeyType": "RANGE"},
+        ],
+        AttributeDefinitions=[
+            {"AttributeName": "user_id",     "AttributeType": "S"},
+            {"AttributeName": "document_id", "AttributeType": "S"},
+        ],
+        BillingMode="PAY_PER_REQUEST",
+    )
+    ddb.create_table(
+        TableName="document-versions",
+        KeySchema=[
+            {"AttributeName": "document_id", "KeyType": "HASH"},
+            {"AttributeName": "version_id",  "KeyType": "RANGE"},
+        ],
+        AttributeDefinitions=[
+            {"AttributeName": "document_id", "AttributeType": "S"},
+            {"AttributeName": "version_id",  "AttributeType": "S"},
+            {"AttributeName": "created_at",  "AttributeType": "S"},
+        ],
+        GlobalSecondaryIndexes=[
+            {
+                "IndexName": "document-created-index",
+                "KeySchema": [
+                    {"AttributeName": "document_id", "KeyType": "HASH"},
+                    {"AttributeName": "created_at",  "KeyType": "RANGE"},
+                ],
+                "Projection": {"ProjectionType": "ALL"},
+            },
+        ],
         BillingMode="PAY_PER_REQUEST",
     )
 
@@ -411,7 +448,7 @@ class TestPublicProfileKvPath(unittest.TestCase):
         with patch("api.routers.users.requests.get", return_value=mock_resp), \
              patch("api.routers.users._CF_TOKEN", "fake-token"), \
              patch("api.routers.users._CF_KV_NS", "fake-ns"), \
-             patch("api.routers.users._get_cf_account_id", return_value="fake-acct"):
+             patch("kv._get_cf_account_id", return_value="fake-acct"):
             status, body = self._call("kvuser")
 
         self.assertEqual(status, 200)
@@ -439,7 +476,7 @@ class TestPublicProfileKvPath(unittest.TestCase):
         with patch("api.routers.users.requests.get", return_value=mock_resp), \
              patch("api.routers.users._CF_TOKEN", "fake-token"), \
              patch("api.routers.users._CF_KV_NS", "fake-ns"), \
-             patch("api.routers.users._get_cf_account_id", return_value="fake-acct"):
+             patch("kv._get_cf_account_id", return_value="fake-acct"):
             status, body = self._call("kvuser", bearer_token=token)
 
         self.assertEqual(status, 200)
@@ -453,7 +490,7 @@ class TestPublicProfileKvPath(unittest.TestCase):
         with patch("api.routers.users.requests.get", return_value=mock_resp), \
              patch("api.routers.users._CF_TOKEN", "fake-token"), \
              patch("api.routers.users._CF_KV_NS", "fake-ns"), \
-             patch("api.routers.users._get_cf_account_id", return_value="fake-acct"):
+             patch("kv._get_cf_account_id", return_value="fake-acct"):
             status, _ = self._call("nobody")
 
         self.assertEqual(status, 404)
@@ -465,7 +502,7 @@ class TestPublicProfileKvPath(unittest.TestCase):
         with patch("api.routers.users.requests.get", side_effect=Exception("timeout")), \
              patch("api.routers.users._CF_TOKEN", "fake-token"), \
              patch("api.routers.users._CF_KV_NS", "fake-ns"), \
-             patch("api.routers.users._get_cf_account_id", return_value="fake-acct"):
+             patch("kv._get_cf_account_id", return_value="fake-acct"):
             status, body = self._call("fallbackuser")
 
         self.assertEqual(status, 200)
@@ -521,7 +558,7 @@ class TestPublishTimestamps(unittest.TestCase):
 
     def test_publish_stores_last_published_at(self):
         user_id, session_token = self._seed_user_with_session()
-        with patch("api.routers.users._write_profile_to_kv"):
+        with patch("kv.write_profile_to_kv"):
             status, body = self._call("POST", "/users/me/publish", session_token, {"username": "timestampuser"})
         self.assertEqual(status, 200)
         self.assertIn("last_published_at", body)
@@ -1090,6 +1127,248 @@ class TestAdminAuth(unittest.TestCase):
     def test_verify_nonexistent_token_returns_false(self):
         _, body = self._verify(str(uuid.uuid4()))
         self.assertFalse(body["ok"])
+
+
+@mock_aws
+class TestDocuments(unittest.TestCase):
+    """GET/POST /documents and version/publish endpoints."""
+
+    def setUp(self):
+        import importlib
+        import db as db_module
+        self.ddb = boto3.resource("dynamodb", region_name="us-east-1")
+        _create_tables(self.ddb)
+        importlib.reload(db_module)
+        self.user_id, self.session_token = self._seed_published_user()
+
+    def _seed_published_user(self):
+        user_id = str(uuid.uuid4())
+        self.ddb.Table("users").put_item(Item={
+            "user_id": user_id,
+            "email": "doc@example.com",
+            "username": "docuser",
+            "published": True,
+            "visibility": {"identity": "public", "communication-style": "private"},
+        })
+        token = str(uuid.uuid4())
+        self.ddb.Table("user-tokens").put_item(Item={
+            "token_id": token,
+            "user_id": user_id,
+            "ttl": int(time.time()) + 86400,
+        })
+        return user_id, token
+
+    def _call(self, method, path, body=None):
+        from api.app import handler
+        event = _make_event(method, path, body=body, headers={
+            "authorization": f"Bearer {self.session_token}",
+        })
+        result = handler(event, MagicMock())
+        return result["statusCode"], json.loads(result["body"])
+
+    def _create_doc(self, title="identity", content="# Identity\nI am a developer."):
+        return self._call("POST", "/documents", {"title": title, "content": content})
+
+    # ── GET /documents ────────────────────────────────────────────────────────
+
+    def test_list_documents_empty(self):
+        status, body = self._call("GET", "/documents")
+        self.assertEqual(status, 200)
+        self.assertEqual(body["documents"], [])
+
+    def test_list_documents_returns_created_docs(self):
+        self._create_doc()
+        status, body = self._call("GET", "/documents")
+        self.assertEqual(status, 200)
+        self.assertEqual(len(body["documents"]), 1)
+        doc = body["documents"][0]
+        self.assertEqual(doc["title"], "identity")
+        self.assertIsNone(doc["published_at"])
+        self.assertTrue(doc["has_draft"])
+
+    def test_list_documents_no_auth_returns_401(self):
+        from api.app import handler
+        result = handler(_make_event("GET", "/documents"), MagicMock())
+        self.assertEqual(result["statusCode"], 401)
+
+    # ── POST /documents ───────────────────────────────────────────────────────
+
+    def test_create_document_returns_doc_object(self):
+        status, body = self._create_doc()
+        self.assertEqual(status, 200)
+        self.assertIn("document_id", body)
+        self.assertEqual(body["title"], "identity")
+        self.assertIsNone(body["published_at"])
+        self.assertTrue(body["has_draft"])
+        self.assertIsNone(body["content"])  # no published version yet
+
+    def test_create_document_persisted_to_dynamodb(self):
+        _, body = self._create_doc()
+        doc_id = body["document_id"]
+        item = self.ddb.Table("documents").get_item(
+            Key={"user_id": self.user_id, "document_id": doc_id}
+        )["Item"]
+        self.assertEqual(item["title"], "identity")
+
+    def test_create_document_creates_first_draft_version(self):
+        _, body = self._create_doc()
+        doc_id = body["document_id"]
+        versions = self.ddb.Table("document-versions").query(
+            IndexName="document-created-index",
+            KeyConditionExpression="document_id = :d",
+            ExpressionAttributeValues={":d": doc_id},
+        )["Items"]
+        self.assertEqual(len(versions), 1)
+        self.assertFalse(versions[0]["is_published"])
+
+    def test_create_duplicate_title_returns_409(self):
+        self._create_doc()
+        status, _ = self._create_doc()
+        self.assertEqual(status, 409)
+
+    def test_create_invalid_section_returns_400(self):
+        status, _ = self._create_doc(title="not-a-real-section")
+        self.assertEqual(status, 400)
+
+    def test_create_missing_title_returns_400(self):
+        status, _ = self._call("POST", "/documents", {"content": "some content"})
+        self.assertEqual(status, 400)
+
+    # ── POST /documents/{id}/versions ─────────────────────────────────────────
+
+    def test_create_version_requires_published_latest(self):
+        """Cannot create new version if latest is already unpublished (draft exists)."""
+        _, doc = self._create_doc()
+        doc_id = doc["document_id"]
+        status, _ = self._call("POST", f"/documents/{doc_id}/versions", {"content": "New draft."})
+        self.assertEqual(status, 409)
+
+    def test_create_version_after_publish_succeeds(self):
+        _, doc = self._create_doc()
+        doc_id = doc["document_id"]
+        # Get the version_id of the draft
+        versions = self.ddb.Table("document-versions").query(
+            IndexName="document-created-index",
+            KeyConditionExpression="document_id = :d",
+            ExpressionAttributeValues={":d": doc_id},
+        )["Items"]
+        version_id = versions[0]["version_id"]
+
+        with patch("kv.write_profile_to_kv"), patch("kv.gather_approved_files", return_value={}):
+            self._call("POST", f"/documents/{doc_id}/versions/{version_id}/publish")
+
+        status, body = self._call("POST", f"/documents/{doc_id}/versions", {"content": "Updated content."})
+        self.assertEqual(status, 200)
+        self.assertIn("version_id", body)
+
+    # ── GET /documents/{id}/versions ─────────────────────────────────────────
+
+    def test_get_versions_returns_newest_first(self):
+        _, doc = self._create_doc()
+        doc_id = doc["document_id"]
+
+        # Publish the draft first
+        versions = self.ddb.Table("document-versions").query(
+            IndexName="document-created-index",
+            KeyConditionExpression="document_id = :d",
+            ExpressionAttributeValues={":d": doc_id},
+        )["Items"]
+        version_id = versions[0]["version_id"]
+        with patch("kv.write_profile_to_kv"), patch("kv.gather_approved_files", return_value={}):
+            self._call("POST", f"/documents/{doc_id}/versions/{version_id}/publish")
+
+        # Create a second version
+        self._call("POST", f"/documents/{doc_id}/versions", {"content": "Second draft."})
+
+        status, body = self._call("GET", f"/documents/{doc_id}/versions")
+        self.assertEqual(status, 200)
+        self.assertEqual(len(body["versions"]), 2)
+        # Newest first: draft (not published) then published
+        self.assertFalse(body["versions"][0]["is_published"])
+        self.assertTrue(body["versions"][1]["is_published"])
+
+    def test_get_versions_wrong_user_returns_404(self):
+        _, doc = self._create_doc()
+        doc_id = doc["document_id"]
+
+        # Create another user's session token
+        other_id = str(uuid.uuid4())
+        self.ddb.Table("users").put_item(Item={
+            "user_id": other_id, "email": "other@example.com", "published": False, "visibility": {},
+        })
+        other_token = str(uuid.uuid4())
+        self.ddb.Table("user-tokens").put_item(Item={
+            "token_id": other_token, "user_id": other_id, "ttl": int(time.time()) + 86400,
+        })
+
+        from api.app import handler
+        event = _make_event("GET", f"/documents/{doc_id}/versions", headers={"authorization": f"Bearer {other_token}"})
+        result = handler(event, MagicMock())
+        self.assertEqual(result["statusCode"], 404)
+
+    # ── POST /documents/{id}/versions/{vid}/publish ───────────────────────────
+
+    def test_publish_version_sets_is_published(self):
+        _, doc = self._create_doc()
+        doc_id = doc["document_id"]
+        versions = self.ddb.Table("document-versions").query(
+            IndexName="document-created-index",
+            KeyConditionExpression="document_id = :d",
+            ExpressionAttributeValues={":d": doc_id},
+        )["Items"]
+        version_id = versions[0]["version_id"]
+
+        with patch("kv.write_profile_to_kv"), patch("kv.gather_approved_files", return_value={}):
+            status, body = self._call("POST", f"/documents/{doc_id}/versions/{version_id}/publish")
+
+        self.assertEqual(status, 200)
+        self.assertFalse(body["has_draft"])
+        self.assertIsNotNone(body["published_at"])
+
+        v = self.ddb.Table("document-versions").get_item(
+            Key={"document_id": doc_id, "version_id": version_id}
+        )["Item"]
+        self.assertTrue(v["is_published"])
+        self.assertIsNotNone(v["published_at"])
+
+    def test_publish_already_published_returns_409(self):
+        _, doc = self._create_doc()
+        doc_id = doc["document_id"]
+        versions = self.ddb.Table("document-versions").query(
+            IndexName="document-created-index",
+            KeyConditionExpression="document_id = :d",
+            ExpressionAttributeValues={":d": doc_id},
+        )["Items"]
+        version_id = versions[0]["version_id"]
+
+        with patch("kv.write_profile_to_kv"), patch("kv.gather_approved_files", return_value={}):
+            self._call("POST", f"/documents/{doc_id}/versions/{version_id}/publish")
+            status, _ = self._call("POST", f"/documents/{doc_id}/versions/{version_id}/publish")
+
+        self.assertEqual(status, 409)
+
+    def test_publish_nonexistent_version_returns_404(self):
+        _, doc = self._create_doc()
+        doc_id = doc["document_id"]
+        with patch("kv.write_profile_to_kv"), patch("kv.gather_approved_files", return_value={}):
+            status, _ = self._call("POST", f"/documents/{doc_id}/versions/{uuid.uuid4()}/publish")
+        self.assertEqual(status, 404)
+
+    def test_publish_triggers_kv_write(self):
+        _, doc = self._create_doc()
+        doc_id = doc["document_id"]
+        versions = self.ddb.Table("document-versions").query(
+            IndexName="document-created-index",
+            KeyConditionExpression="document_id = :d",
+            ExpressionAttributeValues={":d": doc_id},
+        )["Items"]
+        version_id = versions[0]["version_id"]
+
+        with patch("kv.write_profile_to_kv") as mock_kv, \
+             patch("kv.gather_approved_files", return_value={}):
+            self._call("POST", f"/documents/{doc_id}/versions/{version_id}/publish")
+
+        mock_kv.assert_called_once()
 
 
 if __name__ == "__main__":

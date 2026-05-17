@@ -65,6 +65,27 @@ export interface SessionState {
   draftFiles: string[]
 }
 
+// ── Documents ─────────────────────────────────────────────────────────────────
+
+export interface Document {
+  documentId: string
+  title: string
+  createdAt: string
+  visibility: string
+  versionId: string | null
+  content: string | null
+  publishedAt: string | null
+  hasDraft: boolean
+}
+
+export interface DocVersion {
+  versionId: string
+  createdAt: string
+  isPublished: boolean
+  publishedAt: string | null
+  content: string
+}
+
 // ── Users ─────────────────────────────────────────────────────────────────────
 
 export interface UserProfile {

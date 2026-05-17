@@ -1,5 +1,4 @@
 import hashlib
-import json
 import os
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -11,18 +10,18 @@ from aws_lambda_powertools.event_handler.api_gateway import Router
 from aws_lambda_powertools.event_handler.exceptions import BadRequestError, NotFoundError, UnauthorizedError
 
 import db
+import kv
 from drafting import summarize_ideas
-from models import DEFAULT_VISIBILITY, SECTIONS, CONTEXT_SECTIONS, User, ContextImportRequest
+from models import DEFAULT_VISIBILITY, SECTIONS, CONTEXT_SECTIONS, ContextImportRequest
 
 logger = Logger(service="whoisme-api")
 router = Router()
 
-_ses           = boto3.client("sesv2", region_name="us-east-1")
-_FROM_EMAIL    = os.environ.get("NOTIFICATION_EMAIL", "")
-_SITE_URL      = os.environ.get("SITE_URL", "https://whoisme.io")
-_CF_TOKEN      = os.environ.get("CF_API_TOKEN", "")
-_CF_KV_NS      = os.environ.get("CF_KV_NAMESPACE_ID", "")
-_CF_ACCOUNT_ID = os.environ.get("CF_ACCOUNT_ID", "")
+_ses        = boto3.client("sesv2", region_name="us-east-1")
+_FROM_EMAIL = os.environ.get("NOTIFICATION_EMAIL", "")
+_SITE_URL   = os.environ.get("SITE_URL", "https://whoisme.io")
+_CF_TOKEN   = os.environ.get("CF_API_TOKEN", "")
+_CF_KV_NS   = os.environ.get("CF_KV_NAMESPACE_ID", "")
 
 _SESSION_TTL_H = 24
 _USER_TOKEN_TTL_DAYS = 365
@@ -89,66 +88,6 @@ def _send_magic_link(to_email: str, token: str) -> None:
         logger.error(f"Failed to send magic link: {e}")
 
 
-def _write_profile_to_kv(user: dict, approved_files: dict) -> None:
-    if not _CF_TOKEN or not _CF_KV_NS:
-        logger.warning("CF KV not configured — skipping KV write")
-        return
-
-    username = user.get("username")
-    if not username:
-        return
-
-    profile = {
-        "username": username,
-        "updated_at": _now_iso(),
-        "last_published_at": user.get("last_published_at"),
-        "files": approved_files,
-        "visibility": user.get("visibility", DEFAULT_VISIBILITY),
-        "token_hash": user.get("token_hash"),
-    }
-
-    try:
-        resp = requests.put(
-            _kv_url(username),
-            headers={"Authorization": f"Bearer {_CF_TOKEN}", "Content-Type": "application/json"},
-            data=json.dumps(profile),
-            timeout=10,
-        )
-        result = resp.json()
-        if not result.get("success"):
-            logger.error(f"KV write failed: {result.get('errors')}")
-        else:
-            logger.info(f"KV profile written for {username}")
-    except Exception as e:
-        logger.error(f"KV write error: {e}")
-
-
-_cf_account_id_cache: str | None = None
-
-def _get_cf_account_id() -> str:
-    global _cf_account_id_cache
-    if _CF_ACCOUNT_ID:
-        return _CF_ACCOUNT_ID
-    if _cf_account_id_cache:
-        return _cf_account_id_cache
-    resp = requests.get(
-        "https://api.cloudflare.com/client/v4/accounts",
-        headers={"Authorization": f"Bearer {_CF_TOKEN}"},
-        timeout=10,
-    )
-    data = resp.json()
-    if data.get("success") and data.get("result"):
-        _cf_account_id_cache = data["result"][0]["id"]
-        return _cf_account_id_cache
-    raise RuntimeError("Could not retrieve Cloudflare account ID")
-
-
-def _kv_url(username: str) -> str:
-    return (
-        f"https://api.cloudflare.com/client/v4/accounts/{_get_cf_account_id()}"
-        f"/storage/kv/namespaces/{_CF_KV_NS}/values/{username}"
-    )
-
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -162,7 +101,7 @@ def get_public_profile(username: str):
     if _CF_TOKEN and _CF_KV_NS:
         try:
             kv_resp = requests.get(
-                _kv_url(username),
+                kv.kv_url(username),
                 headers={"Authorization": f"Bearer {_CF_TOKEN}"},
                 timeout=5,
             )
@@ -405,7 +344,7 @@ def publish():
     user["username"] = username
     user["last_published_at"] = now
 
-    _write_profile_to_kv(user, approved_files)
+    kv.write_profile_to_kv(user, approved_files)
 
     return {"username": username, "url": f"https://whoisme.io/u/{username}", "last_published_at": now}
 
@@ -492,7 +431,7 @@ def context_publish():
     for s in scan_resp.get("Items", []):
         all_approved.update(s.get("approved_files", {}))
 
-    _write_profile_to_kv(user, all_approved)
+    kv.write_profile_to_kv(user, all_approved)
 
     return {
         "section": context_type,
@@ -557,7 +496,7 @@ def context_import():
         if s.get("session_id") != ctx_session_id:
             all_approved.update(s.get("approved_files", {}))
     all_approved.update(ctx_session.get("approved_files", {}))  # always use fresh copy
-    _write_profile_to_kv(user, all_approved)
+    kv.write_profile_to_kv(user, all_approved)
 
     return {
         "section": req.section,
@@ -608,7 +547,7 @@ def create_bearer_token():
         for session in scan_resp.get("Items", []):
             approved_files.update(session.get("approved_files", {}))
         if approved_files:
-            _write_profile_to_kv(user, approved_files)
+            kv.write_profile_to_kv(user, approved_files)
 
     return {"token": token}
 
@@ -657,7 +596,7 @@ def unpublish():
     if username and _CF_TOKEN and _CF_KV_NS:
         try:
             resp = requests.delete(
-                _kv_url(username),
+                kv.kv_url(username),
                 headers={"Authorization": f"Bearer {_CF_TOKEN}"},
                 timeout=10,
             )
@@ -686,7 +625,7 @@ def delete_account():
     if username and _CF_TOKEN and _CF_KV_NS:
         try:
             resp = requests.delete(
-                _kv_url(username),
+                kv.kv_url(username),
                 headers={"Authorization": f"Bearer {_CF_TOKEN}"},
                 timeout=10,
             )

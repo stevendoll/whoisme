@@ -8,6 +8,7 @@ import ProfilePage from './pages/ProfilePage'
 import ReviewPage from './pages/ReviewPage'
 import PublicProfilePage from './pages/PublicProfilePage'
 import QuickContextPage from './pages/QuickContextPage'
+import DocsPage from './pages/DocsPage'
 import { postAdminVerify, verifyAuth, postError } from './lib/api'
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -102,6 +103,7 @@ export default function App() {
              : basePath === '#/review'               ? 'review'
              : basePath === '#/profile'              ? 'profile'
              : basePath === '#/context'              ? 'context'
+             : basePath === '#/docs'                 ? 'docs'
              : 'landing'
 
   return (
@@ -115,6 +117,7 @@ export default function App() {
        : page === 'review'      ? <ReviewPage />
        : page === 'profile'     ? <ProfilePage />
        : page === 'context'     ? <QuickContextPage />
+       : page === 'docs'        ? <DocsPage />
        : <LandingPage />}
       </ErrorBoundary>
     </>

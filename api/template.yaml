@@ -83,6 +83,8 @@ Globals:
         USERS_TABLE: !Ref UsersTable
         USER_TOKENS_TABLE: !Ref UserTokensTable
         INTERVIEW_SESSIONS_TABLE: !Ref InterviewSessionsTable
+        DOCUMENTS_TABLE: !Ref DocumentsTable
+        DOCUMENT_VERSIONS_TABLE: !Ref DocumentVersionsTable
         CF_API_TOKEN: !Ref CfApiToken
         CF_ZONE_ID: !Ref CfZoneId
         CF_KV_NAMESPACE_ID: !Ref CfKvNamespaceId
@@ -197,6 +199,57 @@ Resources:
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: false
 
+  DocumentsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: whoisme-documents
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: document_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+        - AttributeName: document_id
+          KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+
+  DocumentVersionsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: whoisme-document-versions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: document_id
+          AttributeType: S
+        - AttributeName: version_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: document_id
+          KeyType: HASH
+        - AttributeName: version_id
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: document-created-index
+          KeySchema:
+            - AttributeName: document_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+
   # ── Lambda Function ──────────────────────────────────────────────────────────
 
   WhoIsMeApiFunction:
@@ -217,6 +270,10 @@ Resources:
             TableName: !Ref UserTokensTable
         - DynamoDBCrudPolicy:
             TableName: !Ref InterviewSessionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DocumentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DocumentVersionsTable
         - Statement:
             - Effect: Allow
               Action:

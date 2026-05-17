@@ -86,6 +86,17 @@ DEFAULT_VISIBILITY: dict[str, str] = {
     **{k: v.default_visibility for k, v in CONTEXT_SECTIONS.items()},
 }
 
+IA_GROUPS: dict[str, list[str]] = {
+    "Profile": [
+        "identity", "role-and-responsibilities", "current-projects",
+        "team-and-relationships", "tools-and-systems", "communication-style",
+        "goals-and-priorities", "preferences-and-constraints",
+        "domain-knowledge", "decision-log",
+    ],
+    "Productivity": ["standup", "networking"],
+    "Create": ["ideas"],
+}
+
 InterviewPhase = Literal["interviewing", "reviewing", "complete"]
 
 
