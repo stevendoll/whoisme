@@ -2,6 +2,8 @@
 
 Website and API for [whoisme.io](https://whoisme.io) — AI-conducted interview that builds a personal context portfolio.
 
+Inspired by the concept of a [personal context portfolio](https://play.aidailybrief.ai/episodes/personal-context-portfolio/) from AI Daily Brief.
+
 ## Structure
 
 ```
