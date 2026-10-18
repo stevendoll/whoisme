@@ -31,7 +31,7 @@ make local-api-start
 
 ```bash
 cp ui/.env.local.example ui/.env.local
-# Fill in VITE_API_URL, VITE_CARTESIA_API_KEY, VITE_CARTESIA_VOICE_ID
+# Fill in VITE_API_URL, VITE_CARTESIA_VOICE_ID
 
 cd ui && npm install && npm run dev
 ```
@@ -55,7 +55,7 @@ Browser
 
 Profile data is published to **Cloudflare KV** at `whoisme.io/u/{username}` on publish.
 
-Cartesia TTS runs entirely in the browser via WebSocket — no Lambda proxy.
+Cartesia TTS streams in the browser via WebSocket, authed with a short-lived access token from `POST /tts/token` — the API key stays in the Lambda.
 
 **DynamoDB tables:** `whoisme-contacts`, `whoisme-admin-tokens`, `whoisme-users`, `whoisme-user-tokens`, `whoisme-interview-sessions`, `whoisme-documents`, `whoisme-document-versions`
 
@@ -124,7 +124,7 @@ Approving a section during review immediately creates a versioned document in th
 | `S3_BUCKET` | UI bucket name |
 | `CLOUDFRONT_DISTRIBUTION_ID` | CloudFront distribution for whoisme.io |
 | `VITE_API_URL` | `https://api.whoisme.io` |
-| `VITE_CARTESIA_API_KEY` | Cartesia API key (baked into UI build) |
+| `CARTESIA_API_KEY` | Cartesia API key — passed to the Lambda, which mints short-lived TTS access tokens via `POST /tts/token`; never baked into the UI build |
 | `VITE_CARTESIA_VOICE_ID` | Cartesia voice UUID for interview TTS |
 | `VITE_CARTESIA_VOICES` | JSON map of named voices |
 | `ACM_CERTIFICATE_ARN` | ACM cert for `api.whoisme.io` (us-east-1) |

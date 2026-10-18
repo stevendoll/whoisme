@@ -58,6 +58,10 @@ export function postContact(body: ContactRequest): Promise<{ contactId: string }
   })
 }
 
+export function postTtsToken(): Promise<{ token: string }> {
+  return apiFetch('/tts/token', { method: 'POST' })
+}
+
 export function postError(error_type: string, message: string): Promise<{ ok: boolean }> {
   return apiFetch('/errors', {
     method: 'POST',

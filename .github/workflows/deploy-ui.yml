@@ -46,7 +46,6 @@ jobs:
         working-directory: ui
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
-          VITE_CARTESIA_API_KEY: ${{ secrets.VITE_CARTESIA_API_KEY }}
           VITE_CARTESIA_VOICE_ID: ${{ secrets.VITE_CARTESIA_VOICE_ID }}
           VITE_CARTESIA_VOICES: ${{ secrets.VITE_CARTESIA_VOICES }}
         run: npm run build
