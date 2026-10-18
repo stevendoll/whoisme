@@ -3,7 +3,15 @@
  * No UI state management; use VoiceBox's speakAs for the full experience.
  */
 
+import { postTtsToken } from './api'
+
 const SAMPLE_RATE = 44100
+
+/** Cartesia TTS WebSocket URL authed with a short-lived access token minted by our API. */
+export async function ttsSocketUrl(): Promise<string> {
+  const { token } = await postTtsToken()
+  return `wss://api.cartesia.ai/tts/websocket?access_token=${encodeURIComponent(token)}&cartesia_version=2025-04-16`
+}
 
 export interface GenerationConfig {
   emotion?: string
@@ -21,22 +29,19 @@ function stripSsml(text: string): string {
 }
 
 export function playTts(
-  apiKey: string,
   voiceId: string,
   text: string,
   audioCtx: AudioContext,
   generationConfig?: GenerationConfig,
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const clean = stripSsml(text)
+  const clean = stripSsml(text)
 
-    if (!apiKey || !voiceId) {
-      const ms = Math.max(800, clean.length * 45)
-      setTimeout(resolve, ms)
-      return
-    }
+  if (!voiceId) {
+    const ms = Math.max(800, clean.length * 45)
+    return new Promise(resolve => setTimeout(resolve, ms))
+  }
 
-    const wsUrl = `wss://api.cartesia.ai/tts/websocket?api_key=${apiKey}&cartesia_version=2025-04-16`
+  return ttsSocketUrl().then(wsUrl => new Promise<void>((resolve, reject) => {
     const ws    = new WebSocket(wsUrl)
     ws.binaryType = 'arraybuffer'
 
@@ -119,5 +124,5 @@ export function playTts(
       const remaining = Math.max(50, (nextPlayTime - audioCtx.currentTime) * 1000 + 150)
       setTimeout(finish, remaining)
     }
-  })
+  }))
 }

@@ -4,6 +4,7 @@ WhoIsMe API — Lambda handler.
 Routes:
   POST /contacts                            — contact form submission
   POST /errors                              — client error reporting
+  POST /tts/token                           — mint a short-lived Cartesia access token
   POST /interview                           — start interview session
   POST /interview/{id}/respond              — submit answer, get next question
   POST /interview/{id}/skip                 — skip current section
@@ -20,7 +21,7 @@ from aws_lambda_powertools.event_handler import APIGatewayHttpResolver, CORSConf
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
 import db  # noqa: F401
-from api.routers import contacts, documents, errors, auth, interview, users
+from api.routers import contacts, documents, errors, auth, interview, users, tts
 
 logger  = Logger(service="whoisme-api")
 metrics = Metrics(namespace="WhoIsMeApi")
@@ -29,6 +30,7 @@ api = APIGatewayHttpResolver(cors=CORSConfig(allow_origin="*"))
 
 api.include_router(contacts.router)  # POST /contacts
 api.include_router(errors.router)    # POST /errors
+api.include_router(tts.router)       # POST /tts/token
 api.include_router(auth.router)      # POST /admin/login, POST /admin/verify
 api.include_router(interview.router) # POST /interview, /interview/{id}/*
 api.include_router(users.router)      # POST /users/start, /users/verify, /users/me/*

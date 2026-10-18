@@ -7,8 +7,8 @@ import Visualizer, { type VisualizerHandle } from './Visualizer'
 import ChatBubble from './ChatBubble'
 import type { ChatRole } from './ChatBubble'
 import { postError } from '../lib/api'
+import { ttsSocketUrl } from '../lib/tts'
 
-const CARTESIA_API_KEY = import.meta.env.VITE_CARTESIA_API_KEY as string
 const SAMPLE_RATE = 44100
 
 // Interviewer voice — warm, professional
@@ -125,10 +125,14 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
     return new Promise(resolve => {
       const clean = stripSsml(text)
       const activeVoice = voiceOverride ?? voiceId.current
-      if (!CARTESIA_API_KEY || !activeVoice || ttsDisabled.current) {
+      const silentPlayback = () => {
         setTtsState('playing'); setStatus('▶ Playing...'); setStatusType('playing')
         const ms = Math.max(800, clean.length * 45)
         setTimeout(() => { setTtsState('idle'); setStatus(''); setStatusType(''); resolve() }, ms)
+      }
+
+      if (!activeVoice || ttsDisabled.current) {
+        silentPlayback()
         return
       }
 
@@ -144,74 +148,79 @@ const InterviewBox = forwardRef<InterviewBoxHandle, InterviewBoxProps>(function 
         analyserRef.current.fftSize = 256
         analyserRef.current.connect(audioCtx.destination)
 
-        const wsUrl = `wss://api.cartesia.ai/tts/websocket?api_key=${CARTESIA_API_KEY}&cartesia_version=2025-04-16`
-        const ws = new WebSocket(wsUrl)
-        ws.binaryType = 'arraybuffer'
+        ttsSocketUrl().then((wsUrl) => {
+          const ws = new WebSocket(wsUrl)
+          ws.binaryType = 'arraybuffer'
 
-        let nextPlayTime = 0, firstChunk = true, settled = false
+          let nextPlayTime = 0, firstChunk = true, settled = false
 
-        const finish = () => {
-          if (settled) return; settled = true
-          ws.close(); vizRef.current?.stop()
-          setTtsState('idle'); setStatus(''); setStatusType(''); resolve()
-        }
-        const fail = (msg: string) => {
-          if (settled) return; settled = true
-          ws.close(); vizRef.current?.stop()
+          const finish = () => {
+            if (settled) return; settled = true
+            ws.close(); vizRef.current?.stop()
+            setTtsState('idle'); setStatus(''); setStatusType(''); resolve()
+          }
+          const fail = (msg: string) => {
+            if (settled) return; settled = true
+            ws.close(); vizRef.current?.stop()
+            ttsDisabled.current = true
+            reportTtsError(msg)
+            setTtsState('idle'); setStatus(''); setStatusType('')
+            resolve()
+          }
+          const scheduleChunk = (pcm: Float32Array) => {
+            if (firstChunk) {
+              setLatencyMs(Math.round(performance.now() - startMark))
+              firstChunk = false; nextPlayTime = audioCtx.currentTime + 0.02
+              setTtsState('playing'); setStatus('▶ Playing...'); setStatusType('playing')
+              vizRef.current?.start(analyserRef.current!)
+            }
+            const buf = audioCtx.createBuffer(1, pcm.length, SAMPLE_RATE)
+            buf.copyToChannel(pcm, 0)
+            const src = audioCtx.createBufferSource()
+            src.buffer = buf; src.connect(analyserRef.current!); src.start(nextPlayTime)
+            nextPlayTime += buf.duration
+          }
+
+          ws.onopen = () => {
+            setStatus('Synthesizing...')
+            ws.send(JSON.stringify({
+              context_id: crypto.randomUUID(),
+              model_id: 'sonic-3',
+              transcript: clean,
+              voice: { mode: 'id', id: activeVoice },
+              output_format: { container: 'raw', encoding: 'pcm_f32le', sample_rate: SAMPLE_RATE },
+              continue: false,
+            }))
+          }
+          ws.onmessage = (e) => {
+            if (e.data instanceof ArrayBuffer) {
+              scheduleChunk(new Float32Array(e.data))
+            } else {
+              try {
+                const msg = JSON.parse(e.data as string) as { type?: string; data?: string }
+                if (msg.type === 'error' || msg.type === 'done') {
+                  if (firstChunk) fail(`TTS error: ${JSON.stringify(msg)}`)
+                  else { setTimeout(finish, Math.max(50, (nextPlayTime - audioCtx.currentTime) * 1000 + 150)) }
+                  return
+                }
+                if (msg.data) {
+                  const bin = atob(msg.data); const bytes = new Uint8Array(bin.length)
+                  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+                  scheduleChunk(new Float32Array(bytes.buffer))
+                }
+              } catch { /* ignore */ }
+            }
+          }
+          ws.onerror = () => fail('Connection failed')
+          ws.onclose = () => {
+            if (firstChunk) { fail('No audio received'); return }
+            setTimeout(finish, Math.max(50, (nextPlayTime - audioCtx.currentTime) * 1000 + 150))
+          }
+        }, () => {
           ttsDisabled.current = true
-          reportTtsError(msg)
-          setTtsState('idle'); setStatus(''); setStatusType('')
-          resolve()
-        }
-        const scheduleChunk = (pcm: Float32Array) => {
-          if (firstChunk) {
-            setLatencyMs(Math.round(performance.now() - startMark))
-            firstChunk = false; nextPlayTime = audioCtx.currentTime + 0.02
-            setTtsState('playing'); setStatus('▶ Playing...'); setStatusType('playing')
-            vizRef.current?.start(analyserRef.current!)
-          }
-          const buf = audioCtx.createBuffer(1, pcm.length, SAMPLE_RATE)
-          buf.copyToChannel(pcm, 0)
-          const src = audioCtx.createBufferSource()
-          src.buffer = buf; src.connect(analyserRef.current!); src.start(nextPlayTime)
-          nextPlayTime += buf.duration
-        }
-
-        ws.onopen = () => {
-          setStatus('Synthesizing...')
-          ws.send(JSON.stringify({
-            context_id: crypto.randomUUID(),
-            model_id: 'sonic-3',
-            transcript: clean,
-            voice: { mode: 'id', id: activeVoice },
-            output_format: { container: 'raw', encoding: 'pcm_f32le', sample_rate: SAMPLE_RATE },
-            continue: false,
-          }))
-        }
-        ws.onmessage = (e) => {
-          if (e.data instanceof ArrayBuffer) {
-            scheduleChunk(new Float32Array(e.data))
-          } else {
-            try {
-              const msg = JSON.parse(e.data as string) as { type?: string; data?: string }
-              if (msg.type === 'error' || msg.type === 'done') {
-                if (firstChunk) fail(`TTS error: ${JSON.stringify(msg)}`)
-                else { setTimeout(finish, Math.max(50, (nextPlayTime - audioCtx.currentTime) * 1000 + 150)) }
-                return
-              }
-              if (msg.data) {
-                const bin = atob(msg.data); const bytes = new Uint8Array(bin.length)
-                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-                scheduleChunk(new Float32Array(bytes.buffer))
-              }
-            } catch { /* ignore */ }
-          }
-        }
-        ws.onerror = () => fail('Connection failed')
-        ws.onclose = () => {
-          if (firstChunk) { fail('No audio received'); return }
-          setTimeout(finish, Math.max(50, (nextPlayTime - audioCtx.currentTime) * 1000 + 150))
-        }
+          reportTtsError('TTS token request failed')
+          silentPlayback()
+        })
       } catch (err) {
         ttsDisabled.current = true
         reportTtsError(err instanceof Error ? err.message : 'AudioContext error')

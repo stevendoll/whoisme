@@ -101,6 +101,7 @@ jobs:
               "ApiDomainName='api.whoisme.io'" \
               "SlackmailUrl='${{ secrets.SLACKMAIL_URL }}'" \
               "SlackmailApiKey='${{ secrets.SLACKMAIL_API_KEY }}'" \
+              "CartesiaApiKey='${{ secrets.CARTESIA_API_KEY }}'" \
               "CfApiToken='${{ secrets.CLOUDFLARE_API_TOKEN }}'" \
               "CfZoneId='${{ secrets.CLOUDFLARE_ZONE_ID }}'" \
               "CfKvNamespaceId='${{ secrets.CF_KV_NAMESPACE_ID }}'" \

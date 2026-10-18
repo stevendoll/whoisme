@@ -31,6 +31,12 @@ Parameters:
     NoEcho: true
     Description: Slackmail API key
 
+  CartesiaApiKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Cartesia API key, used server-side to mint short-lived TTS access tokens
+
   AdminEmails:
     Type: String
     Default: "steven@dolltribe.com"
@@ -77,6 +83,7 @@ Globals:
         NOTIFICATION_EMAIL: !Ref NotificationEmail
         SLACKMAIL_URL: !Ref SlackmailUrl
         SLACKMAIL_API_KEY: !Ref SlackmailApiKey
+        CARTESIA_API_KEY: !Ref CartesiaApiKey
         ADMIN_EMAILS: !Ref AdminEmails
         SITE_URL: !Ref SiteUrl
         ADMIN_TOKENS_TABLE: !Ref AdminTokensTable

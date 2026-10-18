@@ -1407,5 +1407,54 @@ class TestDocuments(unittest.TestCase):
         mock_kv.assert_called_once()
 
 
+def _cartesia_response(body):
+    resp = MagicMock()
+    resp.read.return_value = json.dumps(body).encode()
+    resp.__enter__.return_value = resp
+    return resp
+
+
+class TestTtsToken(unittest.TestCase):
+    """The Cartesia API key stays server-side; the browser gets a short-lived TTS-only token."""
+
+    def _call(self):
+        from api.app import handler
+        resp = handler(_make_event("POST", "/tts/token"), MagicMock())
+        return resp["statusCode"], resp["body"]
+
+    @patch.dict(os.environ, {"CARTESIA_API_KEY": "sk_car_server_secret"})
+    @patch("urllib.request.urlopen")
+    def test_returns_access_token_without_leaking_api_key(self, mock_urlopen):
+        mock_urlopen.return_value = _cartesia_response({"token": "short-lived-token"})
+
+        status, body = self._call()
+
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body), {"token": "short-lived-token"})
+        self.assertNotIn("sk_car_server_secret", body)
+
+        req = mock_urlopen.call_args[0][0]
+        self.assertEqual(req.full_url, "https://api.cartesia.ai/access-token")
+        self.assertEqual(req.get_method(), "POST")
+        self.assertEqual(req.get_header("Authorization"), "Bearer sk_car_server_secret")
+        self.assertIn("Cartesia-version", req.headers)
+        sent = json.loads(req.data)
+        self.assertEqual(sent["grants"], {"tts": True})
+        self.assertLessEqual(sent["expires_in"], 300)
+
+    @patch.dict(os.environ, {"CARTESIA_API_KEY": ""})
+    @patch("urllib.request.urlopen")
+    def test_missing_api_key_returns_503(self, mock_urlopen):
+        status, _ = self._call()
+        self.assertEqual(status, 503)
+        mock_urlopen.assert_not_called()
+
+    @patch.dict(os.environ, {"CARTESIA_API_KEY": "sk_car_server_secret"})
+    @patch("urllib.request.urlopen", side_effect=OSError("connection refused"))
+    def test_cartesia_failure_returns_502(self, _mock_urlopen):
+        status, body = self._call()
+        self.assertEqual(status, 502)
+        self.assertNotIn("sk_car_server_secret", body)
+
 if __name__ == "__main__":
     unittest.main()
