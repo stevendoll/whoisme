@@ -6,7 +6,7 @@ logger = Logger(service="whoisme-api")
 
 _bedrock = boto3.client("bedrock-runtime", region_name="us-east-1")
 
-MODEL_ID = "us.anthropic.claude-3-5-haiku-20241022-v1:0"
+MODEL_ID = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
 def call_bedrock(
     system_prompt: str,

@@ -8,7 +8,7 @@ Inspired by the concept of a [personal context portfolio](https://play.aidailybr
 
 ```
 ├── ui/       React 19 + Vite 6 + TypeScript + Tailwind CSS 4
-├── api/      AWS Lambda + DynamoDB + Bedrock (Claude 3.5 Haiku)
+├── api/      AWS Lambda + DynamoDB + Bedrock (Claude Haiku 4.5)
 ├── assets/   Brand assets (logo, favicon source)
 ├── docs/     Internal notes and standup history
 └── scripts/  Smoke tests, session extractor, Cloudflare DNS upsert
